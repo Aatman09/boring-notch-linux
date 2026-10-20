@@ -2,6 +2,10 @@
 <schemalist>
   <schema id="org.gnome.shell.extensions.boring-notch-linux"
           path="/org/gnome/shell/extensions/boring-notch-linux/">
+    <key name="show-privacy-indicators" type="b">
+      <default>true</default>
+      <summary>Coloured dots beside the clock and a peek when an app uses the microphone, camera or screen sharing</summary>
+    </key>
     <key name="open-on-hover" type="b">
       <default>true</default>
       <summary>Open the notch when the pointer rests on it</summary>

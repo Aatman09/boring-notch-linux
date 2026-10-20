@@ -38,7 +38,14 @@ the pointer on it.
 - **Volume and brightness:** changes appear inside the notch instead of the
   GNOME popup.
 - **Battery:** a peek when a charger is plugged in or removed, and the charge
-  level in the header.
+  level in the header. Also warnings when the battery runs low or finishes
+  charging.
+- **Privacy:** small dots beside the clock when the microphone, camera or
+  screen sharing is in use, and a peek naming the app. It only reads which
+  apps are using them; nothing is recorded.
+- **System peeks:** a moon beside the clock while Do Not Disturb is on, a
+  screenshot thumbnail when you take one, a peek when a Bluetooth device
+  connects or disconnects, and Caps Lock and keyboard layout changes.
 - **Settings:** size, hover to open, hover delay, notch width, clock
   placement, and each live activity can be turned off.
 

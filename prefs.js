@@ -177,7 +177,13 @@ function peeksPage(settings) {
         'Show browser downloads while they run and when they finish'));
     group.add(switchRow(settings, 'show-battery-activity', 'Battery',
         'Peek out when a charger is plugged in or removed'));
+
+    const awareness = new Adw.PreferencesGroup({title: 'System awareness'});
+    awareness.add(switchRow(settings, 'show-privacy-indicators',
+        'Microphone, camera and screen sharing',
+        'Dots beside the clock and a peek naming the app. It reads which apps use the microphone and camera but never records anything.'));
     page.add(group);
+    page.add(awareness);
     return page;
 }
 

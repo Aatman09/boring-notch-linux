@@ -13,6 +13,7 @@ import {Island} from './src/island.js';
 import {MediaManager} from './src/media.js';
 import {ScaledStylesheet} from './src/style.js';
 import {Timer} from './src/timer.js';
+import {PrivacyMonitor} from './src/privacy.js';
 import {Zoom} from './src/zoom.js';
 
 /**
@@ -81,6 +82,7 @@ export default class BoringNotchExtension extends Extension {
         this._downloads = new DownloadWatcher();
         this._artCache = new ArtCache();
         this._audio = new AudioLevels();
+        this._privacy = new PrivacyMonitor();
 
         this._island = new Island({
             settings: this._settings,
@@ -90,6 +92,7 @@ export default class BoringNotchExtension extends Extension {
             timer: this._timer,
             downloads: this._downloads,
             audio: this._audio,
+            privacy: this._privacy,
             artCache: this._artCache,
             openPreferences: () => this.openPreferences(),
         });
@@ -186,6 +189,8 @@ export default class BoringNotchExtension extends Extension {
         this._island.destroy();
         this._island = null;
 
+        this._privacy.destroy();
+        this._privacy = null;
         this._audio.destroy();
         this._audio = null;
         this._artCache.destroy();

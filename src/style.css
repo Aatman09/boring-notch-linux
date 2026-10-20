@@ -133,6 +133,29 @@
   background-color: #0a84ff;
 }
 
+/* Privacy dots: one per kind of use, hidden while that kind is off */
+.bn-privacy {
+  spacing: 4px;
+}
+
+.bn-privacy-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+}
+
+.bn-privacy-mic {
+  background-color: #ff9f0a;
+}
+
+.bn-privacy-camera {
+  background-color: #30d158;
+}
+
+.bn-privacy-sharing {
+  background-color: #0a84ff;
+}
+
 .bn-header-battery {
   spacing: 4px;
   font-size: 12px;
@@ -313,6 +336,10 @@
 
 .bn-message-sneak .bn-icon-text-title {
   max-width: 120px;
+}
+
+.bn-privacy-peek .bn-icon-text-title {
+  max-width: 220px;
 }
 
 .bn-message-sneak .bn-icon-text-body {

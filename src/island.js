@@ -45,6 +45,7 @@ const NOTIFICATION_TIMEOUT_MS = 4000;
 const DOWNLOAD_TIMEOUT_MS = 4000;
 const TIMER_DONE_TIMEOUT_MS = 6000;
 const MUSIC_PEEK_TIMEOUT_MS = 3000;
+const PRIVACY_TIMEOUT_MS = 3000;
 // A notch opened from the keyboard closes by itself unless the pointer
 // comes to it.
 const KEYBOARD_OPEN_MS = 4000;
@@ -71,7 +72,7 @@ const VOLUME_STEP = 0.05;
 
 export const Island = GObject.registerClass(
 class Island extends St.Widget {
-    _init({settings, zoom, media, battery, timer, downloads, audio, artCache, openPreferences}) {
+    _init({settings, zoom, media, battery, timer, downloads, audio, privacy, artCache, openPreferences}) {
         super._init({
             name: 'boring-notch',
             reactive: true,
@@ -85,6 +86,7 @@ class Island extends St.Widget {
         this._battery = battery;
         this._timer = timer;
         this._downloads = downloads;
+        this._privacy = privacy;
         this._artCache = artCache;
         this._state = State.CLOSED;
         this._tab = 'home';
@@ -119,8 +121,21 @@ class Island extends St.Widget {
         // Never shorten the time: the notch is sized to fit it.
         this._clockLabel.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
         this._unreadDot = new St.Widget({style_class: 'bn-unread-dot', y_align: Clutter.ActorAlign.CENTER});
+        this._privacyBox = new St.BoxLayout({style_class: 'bn-privacy', y_align: Clutter.ActorAlign.CENTER});
+        this._privacyDots = {};
+        for (const kind of ['mic', 'camera', 'sharing']) {
+            const dot = new St.Widget({
+                style_class: `bn-privacy-dot bn-privacy-${kind}`,
+                visible: false,
+                y_align: Clutter.ActorAlign.CENTER,
+            });
+            this._privacyDots[kind] = dot;
+            this._privacyBox.add_child(dot);
+        }
+        this._privacyState = privacy?.state ?? {mic: [], camera: false, sharing: false};
         this._clockBox.add_child(this._clockLabel);
         this._clockBox.add_child(this._unreadDot);
+        this._clockBox.add_child(this._privacyBox);
         this._closedLayer.add_child(this._clockBox);
         this._wallClock = new GnomeDesktop.WallClock();
         this._wallClock.bind_property('clock', this._clockLabel, 'text', GObject.BindingFlags.SYNC_CREATE);
@@ -131,9 +146,10 @@ class Island extends St.Widget {
         this._timerLive = new IconTextView('bn-timer-live', 52);
         this._downloadLive = new IconTextView('bn-download-live', 52);
         this._messageSneak = new IconTextView('bn-message-sneak', 150, {peek: true});
+        this._privacyPeek = new IconTextView('bn-privacy-peek', 145, {peek: true});
         this._musicPeek = new MusicPeekView();
         [this._liveMedia, this._hud, this._batterySneak, this._timerLive,
-            this._downloadLive, this._messageSneak, this._musicPeek]
+            this._downloadLive, this._messageSneak, this._privacyPeek, this._musicPeek]
             .forEach(v => this._closedLayer.add_child(v));
         this._closedView = null;
 
@@ -170,6 +186,7 @@ class Island extends St.Widget {
             'changed::show-visualizer', () => this._syncVisualizer(),
             'changed::visualizer-follows-audio', () => this._syncVisualizer(),
             'changed::show-downloads', () => this._relayout(),
+            'changed::show-privacy-indicators', () => this._syncPrivacyDots(),
             this);
         zoom.connectObject('changed', () => this._relayout(true), this);
         this._clockLabel.connect('notify::text', () => this._relayout());
@@ -180,6 +197,10 @@ class Island extends St.Widget {
             'track-changed', (_m, player) => this._onTrackChanged(player),
             this);
         battery.connectObject('plugged', () => this._onPlugged(), this);
+        privacy.connectObject(
+            'changed', (_p, state) => this._onPrivacyChanged(state),
+            'started', (_p, kind, appName) => this._onPrivacyStarted(kind, appName),
+            this);
         timer.connectObject(
             'changed', () => this._syncTimer(),
             'finished', () => this._onTimerFinished(),
@@ -203,6 +224,7 @@ class Island extends St.Widget {
 
         this._syncClock();
         this._syncUnread();
+        this._syncPrivacyDots();
         this._syncMedia();
         this._syncTimer();
         this._syncDownloads();
@@ -364,6 +386,49 @@ class Island extends St.Widget {
             apply: () => this._batterySneak.update(this._battery),
             timeout: BATTERY_TIMEOUT_MS,
             key: 'battery',
+        });
+    }
+
+    _onPrivacyChanged(state) {
+        this._privacyState = state;
+        this._syncPrivacyDots();
+    }
+
+    // One dot per kind of use, beside the clock. Hidden kinds add no width,
+    // so the notch only changes shape when they appear.
+    _syncPrivacyDots() {
+        const show = this._settings.get_boolean('show-privacy-indicators');
+        const {mic, camera, sharing} = this._privacyState;
+        this._privacyDots.mic.visible = show && mic.length > 0;
+        this._privacyDots.camera.visible = show && camera;
+        this._privacyDots.sharing.visible = show && sharing;
+        this._relayout();
+    }
+
+    _onPrivacyStarted(kind, appName) {
+        if (!this._settings.get_boolean('show-privacy-indicators') ||
+            this._state === State.OPEN)
+            return;
+        const usingMic = kind === 'mic';
+        this._showPeek({
+            view: this._privacyPeek,
+            apply: () => this._privacyPeek.update({
+                iconName: usingMic ? 'audio-input-microphone-symbolic' : 'camera-web-symbolic',
+                title: appName
+                    ? `${appName} is using the ${usingMic ? 'microphone' : 'camera'}`
+                    : `An app is using the ${usingMic ? 'microphone' : 'camera'}`,
+            }),
+            timeout: PRIVACY_TIMEOUT_MS,
+            action: () => {
+                try {
+                    Gio.Subprocess.new(['gnome-control-center', 'privacy'],
+                        Gio.SubprocessFlags.NONE);
+                } catch (e) {
+                    console.warn(`Boring Notch: cannot open the privacy panel: ${e.message}`);
+                }
+            },
+            priority: Priority.STATUS,
+            key: 'privacy',
         });
     }
 
