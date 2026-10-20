@@ -13,6 +13,7 @@ import {getMixerControl} from 'resource:///org/gnome/shell/ui/status/volume.js';
 import {BatterySneakView, IconTextView, InlineHudView, LiveMediaView, MusicPeekView, ScreenshotPeekView} from './closedViews.js';
 import {NotchShape} from './notchShape.js';
 import {OpenView} from './openView.js';
+import {RecordingMonitor} from './recording.js';
 import {Spring, SpringAnimator} from './spring.js';
 import {formatTime} from './widgets.js';
 
@@ -54,6 +55,8 @@ const PRIVACY_TIMEOUT_MS = 3000;
 const SCREENSHOT_TIMEOUT_MS = 4000;
 const DND_TIMEOUT_MS = 2500;
 const KEYBOARD_TIMEOUT_MS = 1200;
+// The GNOME screen recorder is read through Main.screenshotUI (B1).
+const RECORD_LIVE_SIDE = 52;
 // A notch opened from the keyboard closes by itself unless the pointer
 // comes to it.
 const KEYBOARD_OPEN_MS = 4000;
@@ -80,7 +83,7 @@ const VOLUME_STEP = 0.05;
 
 export const Island = GObject.registerClass(
 class Island extends St.Widget {
-    _init({settings, zoom, media, battery, timer, downloads, audio, privacy, bluetooth, keyboard, artCache, openPreferences}) {
+    _init({settings, zoom, media, battery, timer, downloads, audio, privacy, bluetooth, keyboard, recording, artCache, openPreferences}) {
         super._init({
             name: 'boring-notch',
             reactive: true,
@@ -97,6 +100,7 @@ class Island extends St.Widget {
         this._privacy = privacy;
         this._bluetooth = bluetooth;
         this._keyboard = keyboard;
+        this._recording = recording;
         this._artCache = artCache;
         this._state = State.CLOSED;
         this._tab = 'home';
@@ -113,6 +117,8 @@ class Island extends St.Widget {
         this._artUrl = null;
         this._artUri = null;
         this._timeouts = new Map();
+        this._recordTickId = 0;
+        this._recordStartUs = 0;
 
         // Children are placed by hand: the content keeps a fixed size and
         // is moved with a translation while the notch grows around it, so
@@ -176,6 +182,9 @@ class Island extends St.Widget {
 
         this._liveMedia = new LiveMediaView(audio);
         this._hud = new InlineHudView();
+        // The screen recording is the most urgent live activity: it hogs the
+        // notch over the timer, the downloads and the music.
+        this._recordLive = new IconTextView('bn-record-live', RECORD_LIVE_SIDE);
         this._batterySneak = new BatterySneakView();
         this._timerLive = new IconTextView('bn-timer-live', 52);
         this._downloadLive = new IconTextView('bn-download-live', 52);
@@ -186,10 +195,10 @@ class Island extends St.Widget {
         this._dndPeek = new IconTextView('bn-dnd-peek', 110, {peek: true});
         this._keyboardPeek = new IconTextView('bn-keyboard-peek', 105, {peek: true});
         this._musicPeek = new MusicPeekView();
-        [this._liveMedia, this._hud, this._batterySneak, this._timerLive,
-            this._downloadLive, this._messageSneak, this._privacyPeek,
-            this._screenshotPeek, this._bluetoothPeek, this._dndPeek,
-            this._keyboardPeek, this._musicPeek]
+        [this._recordLive, this._liveMedia, this._hud, this._batterySneak,
+            this._timerLive, this._downloadLive, this._messageSneak,
+            this._privacyPeek, this._screenshotPeek, this._bluetoothPeek,
+            this._dndPeek, this._keyboardPeek, this._musicPeek]
             .forEach(v => this._closedLayer.add_child(v));
         this._closedView = null;
 
@@ -229,6 +238,7 @@ class Island extends St.Widget {
             'changed::show-downloads', () => this._relayout(),
             'changed::show-privacy-indicators', () => this._syncPrivacyDots(),
             'changed::show-dnd', () => this._syncMoon(),
+            'changed::show-recording', () => this._onShowRecordingChanged(),
             this);
         zoom.connectObject('changed', () => this._relayout(true), this);
         this._clockLabel.connect('notify::text', () => this._relayout());
@@ -255,6 +265,7 @@ class Island extends St.Widget {
             'caps-lock', (_k, on) => this._onCapsLock(on),
             'layout', (_k, source) => this._onLayoutChanged(source),
             this);
+        recording.connectObject('changed', () => this._onRecordingChanged(), this);
         timer.connectObject(
             'changed', () => this._syncTimer(),
             'finished', () => this._onTimerFinished(),
@@ -285,6 +296,14 @@ class Island extends St.Widget {
         this._syncMedia();
         this._syncTimer();
         this._syncDownloads();
+        if (this._recording.recording) {
+            // A recording that is already running when the extension
+            // enables has been going since before we could see it; counting
+            // from now is the best honest guess.
+            this._recordStartUs = GLib.get_monotonic_time();
+            this._syncRecordTick();
+        }
+        this._syncRecordLive();
         this._relayout(true);
     }
 
@@ -318,6 +337,7 @@ class Island extends St.Widget {
         if (opening) {
             this._state = State.OPEN;
             this._clearPeeks();
+            this._syncRecordTick();
             this._fade(this._closedLayer, false);
             this._showOpenView(true);
             this._openView.startTicking();
@@ -342,6 +362,7 @@ class Island extends St.Widget {
         this._fade(this._closedLayer, true, FADE_MS);
         this._openView.stopTicking();
         this._syncVisualizer();
+        this._syncRecordTick();
         this._springs.forEach(s => s.configure(CLOSE_SPRING));
         this._relayout();
     }
@@ -606,6 +627,59 @@ class Island extends St.Widget {
         });
     }
 
+    _onRecordingChanged() {
+        if (this._recording.recording)
+            this._recordStartUs = GLib.get_monotonic_time();
+        else
+            this._stopRecordTick();
+        this._syncRecordLive();
+        this._syncRecordTick();
+        this._relayout();
+    }
+
+    _onShowRecordingChanged() {
+        if (!this._recording.recording)
+            return;
+        this._syncRecordLive();
+        this._syncRecordTick();
+        this._relayout();
+    }
+
+    _syncRecordLive() {
+        this._recordLive.update({
+            iconName: 'media-record-symbolic',
+            title: formatSeconds(this._recordSeconds()),
+        });
+    }
+
+    _recordSeconds() {
+        return Math.floor((GLib.get_monotonic_time() - this._recordStartUs) / GLib.USEC_PER_SEC);
+    }
+
+    // The elapsed time ticks once a second, only while a recording is on
+    // and the notch is closed; when the notch opens or the recording ends,
+    // the ticking stops.
+    _syncRecordTick() {
+        const tick = this._recording.recording && this._state === State.CLOSED &&
+            this._settings.get_boolean('show-recording');
+        if (tick && !this._recordTickId) {
+            this._recordTickId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, () => {
+                this._syncRecordLive();
+                this._relayout();
+                return GLib.SOURCE_CONTINUE;
+            });
+        } else if (!tick && this._recordTickId) {
+            this._stopRecordTick();
+        }
+    }
+
+    _stopRecordTick() {
+        if (this._recordTickId) {
+            GLib.source_remove(this._recordTickId);
+            this._recordTickId = 0;
+        }
+    }
+
     _onTimerFinished() {
         global.display.get_sound_player().play_from_theme('complete', 'Timer done', null);
         if (this._state === State.OPEN)
@@ -788,6 +862,8 @@ class Island extends St.Widget {
     _currentClosedView() {
         if (this._sneak)
             return this._sneak;
+        if (this._recording.recording && this._settings.get_boolean('show-recording'))
+            return this._recordLive;
         if (this._timer.active)
             return this._timerLive;
         if (this._downloads.count > 0 && this._settings.get_boolean('show-downloads'))
@@ -998,6 +1074,14 @@ class Island extends St.Widget {
             this._media.activePlayer?.playPause();
             return Clutter.EVENT_STOP;
         }
+        // While the recorder activity is showing, a click stops the
+        // recording, like GNOME's own recording indicator does.
+        if (this._sneak === null && this._recording.recording &&
+            this._settings.get_boolean('show-recording') &&
+            this._closedView === this._recordLive) {
+            this._recording.stop();
+            return Clutter.EVENT_STOP;
+        }
         if (this._sneakAction) {
             const action = this._sneakAction;
             this._endSneak();
@@ -1136,6 +1220,7 @@ class Island extends St.Widget {
 
     _onDestroy() {
         this._menu.destroy();
+        this._stopRecordTick();
         this._timeouts.forEach(id => GLib.source_remove(id));
         this._timeouts.clear();
         this._animator.destroy();

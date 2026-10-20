@@ -51,6 +51,8 @@ the pointer on it.
   changes, and a switch in the notch's header.
 - **Keyboard:** a peek when Caps Lock turns on or off, and when the layout
   changes, to the short name such as EN.
+- **Screen recording:** a red dot and the elapsed time while GNOME's screen
+  recorder runs; clicking the notch stops it.
 - **Settings:** size, hover to open, hover delay, notch width, clock
   placement, and each live activity can be turned off.
 

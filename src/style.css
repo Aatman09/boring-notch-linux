@@ -195,6 +195,11 @@
   max-width: 120px;
 }
 
+/* Screen recording: a red dot that stays while the recorder runs */
+.bn-record-live .bn-icon-text-icon {
+  color: #ff453a;
+}
+
 .bn-header-battery {
   spacing: 4px;
   font-size: 12px;

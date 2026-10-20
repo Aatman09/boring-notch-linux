@@ -192,6 +192,8 @@ function peeksPage(settings) {
         'Warn when the battery runs low or critical, and when it finishes charging'));
     awareness.add(switchRow(settings, 'show-keyboard', 'Caps Lock and keyboard layout',
         'Peek when Caps Lock turns on or off, or when you switch to another keyboard layout'));
+    awareness.add(switchRow(settings, 'show-recording', 'Screen recording',
+        'Show a red dot and the elapsed time while GNOME screen records; a click on the notch stops the recording'));
     page.add(group);
     page.add(awareness);
     return page;

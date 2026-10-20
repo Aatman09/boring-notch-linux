@@ -14,6 +14,7 @@ import {Island} from './src/island.js';
 import {KeyboardMonitor} from './src/keyboard.js';
 import {MediaManager} from './src/media.js';
 import {PrivacyMonitor} from './src/privacy.js';
+import {RecordingMonitor} from './src/recording.js';
 import {ScaledStylesheet} from './src/style.js';
 import {Timer} from './src/timer.js';
 import {Zoom} from './src/zoom.js';
@@ -87,6 +88,7 @@ export default class BoringNotchExtension extends Extension {
         this._privacy = new PrivacyMonitor();
         this._bluetooth = new BluetoothMonitor();
         this._keyboard = new KeyboardMonitor();
+        this._recording = new RecordingMonitor();
 
         this._island = new Island({
             settings: this._settings,
@@ -99,6 +101,7 @@ export default class BoringNotchExtension extends Extension {
             privacy: this._privacy,
             bluetooth: this._bluetooth,
             keyboard: this._keyboard,
+            recording: this._recording,
             artCache: this._artCache,
             openPreferences: () => this.openPreferences(),
         });
@@ -201,6 +204,8 @@ export default class BoringNotchExtension extends Extension {
         this._bluetooth = null;
         this._keyboard.destroy();
         this._keyboard = null;
+        this._recording.destroy();
+        this._recording = null;
         this._audio.destroy();
         this._audio = null;
         this._artCache.destroy();
