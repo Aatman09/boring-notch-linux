@@ -602,7 +602,7 @@ class Island extends St.Widget {
                 middle = Math.max(middle, clockWidth / scale / zoom + 2 * CLOCK_PADDING);
             }
             width = (middle + 2 * (view?.sideWidth(notchHeight) ?? 0)) * zoom;
-            height = notchHeight;
+            height = notchHeight + (view?.extraHeight() ?? 0);
             radii = RADII.closed;
             if (this.hover && !view) {
                 width += HOVER_GROWTH.width * zoom;

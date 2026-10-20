@@ -10,7 +10,7 @@ import {AlbumArt, Visualizer} from './widgets.js';
 // on the left and right of the middle, which stays empty like the hardware
 // notch on a MacBook. Each view says how much width it adds on each side.
 
-const ClosedView = GObject.registerClass(
+export const ClosedView = GObject.registerClass(
 class ClosedView extends St.BoxLayout {
     _init(styleClass) {
         super._init({
@@ -40,6 +40,12 @@ class ClosedView extends St.BoxLayout {
         return 0;
     }
 
+    // Extra height under the panel height, for peeks taller than the top
+    // bar, in design pixels.
+    extraHeight() {
+        return 0;
+    }
+
     // Live activities leave the middle free for the clock. Peeks use the
     // whole notch, so the clock steps aside for them.
     get showsClock() {
@@ -47,7 +53,7 @@ class ClosedView extends St.BoxLayout {
     }
 });
 
-/** MusicLiveActivity: album art on the left, visualizer on the right. */
+/**
 export const LiveMediaView = GObject.registerClass(
 class LiveMediaView extends ClosedView {
     _init(audio) {

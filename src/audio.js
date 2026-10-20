@@ -7,6 +7,15 @@ import {EventEmitter} from 'resource:///org/gnome/shell/misc/signals.js';
 // extension.js.
 export const VISUALIZER_APP_ID = 'boring-notch-visualizer';
 
+// GNOME shows its microphone indicator while any app records audio; the
+// sound settings' own level meters and the visualizer's capture count as
+// recording but must not. Both this and src/privacy.js leave these apps out.
+export const IGNORED_RECORDING_APPS = [
+    'org.gnome.VolumeControl',
+    'org.PulseAudio.pavucontrol',
+    VISUALIZER_APP_ID,
+];
+
 // Updates per second. Each update redraws the bars, so this is a trade
 // between smoothness and CPU.
 const INTERVAL_MS = 50;

@@ -6,7 +6,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Urgency} from 'resource:///org/gnome/shell/ui/messageTray.js';
 
 import {ArtCache} from './src/art.js';
-import {AudioLevels, VISUALIZER_APP_ID} from './src/audio.js';
+import {AudioLevels, IGNORED_RECORDING_APPS} from './src/audio.js';
 import {BatteryMonitor} from './src/battery.js';
 import {DownloadWatcher} from './src/downloads.js';
 import {Island} from './src/island.js';
@@ -152,14 +152,9 @@ export default class BoringNotchExtension extends Extension {
         if (input) {
             this._injections.overrideMethod(input, '_maybeShowInput', () =>
                 function () {
-                    const skippedApps = [
-                        'org.gnome.VolumeControl',
-                        'org.PulseAudio.pavucontrol',
-                        VISUALIZER_APP_ID,
-                    ];
                     this._showInput = !!this._stream &&
                         this._control.get_source_outputs().some(
-                            output => !skippedApps.includes(output.get_application_id()));
+                            output => !IGNORED_RECORDING_APPS.includes(output.get_application_id()));
                     this._sync();
                 });
             input._maybeShowInput();
