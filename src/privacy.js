@@ -37,12 +37,14 @@ export class PrivacyMonitor extends EventEmitter {
             (_c, handle) => this._onNewHandle(handle), this);
     }
 
-    // Apps recording audio. Ignore the sound settings' level meters and
-    // the visualizer's own capture, just like the mic indicator does.
+    // Apps recording audio. Each stream reports the app's desktop id, or
+    // just its name when there is no id (gst-launch does). The sound
+    // settings' level meters and the visualizer's own capture are left
+    // out, like the mic indicator leaves them out.
     _readMicApps() {
         const control = getMixerControl();
         return (control?.get_source_outputs() ?? [])
-            .map(output => output.get_application_id())
+            .map(output => output.get_application_id() ?? output.get_name())
             .filter(id => id && !IGNORED_RECORDING_APPS.includes(id));
     }
 
