@@ -181,7 +181,7 @@
   max-width: 140px;
 }
 
-/* Do Not Disturb: moon and peek switch colour with its state */
+/* Do Not Disturb: the moon and the peek icon are always orange */
 .bn-dnd-moon {
   icon-size: 12px;
   color: #ff9f0a;
