@@ -12,7 +12,6 @@ const formatSeconds = s => formatTime(s * GLib.USEC_PER_SEC);
 
 const TICK_MS = 500;
 const TIMER_PRESETS = [1, 5, 10, 15, 25];
-const MAX_EVENTS = 4;
 
 export const TABS = [
     {id: 'home', label: 'Home', icon: 'user-home-symbolic'},
@@ -241,16 +240,31 @@ const TodayView = GObject.registerClass(
 class TodayView extends St.BoxLayout {
     _init() {
         super._init({style_class: 'bn-today', x_expand: true, y_expand: true});
+        this.layout_manager.homogeneous = true;
 
         this._messages = new Calendar.CalendarMessageList();
         this._messages.add_style_class_name('bn-messages');
         this.add_child(this._messages);
 
+        // The calendar side takes the other half and keeps the calendar
+        // centred in it. The events list is as wide as the calendar, so it
+        // lines up under it, and scrolls when a day has more events than fit,
+        // instead of pushing the calendar around.
+        const side = new St.Bin({
+            style_class: 'bn-today-side',
+            x_expand: true,
+            y_expand: true,
+            x_align: Clutter.ActorAlign.FILL,
+            y_align: Clutter.ActorAlign.FILL,
+        });
+        this.add_child(side);
         const column = new St.BoxLayout({
             orientation: Clutter.Orientation.VERTICAL,
             style_class: 'bn-today-column',
+            x_align: Clutter.ActorAlign.CENTER,
+            y_expand: true,
         });
-        this.add_child(column);
+        side.child = column;
 
         this._eventSource = new Calendar.DBusEventSource();
         this._calendar = new Calendar.Calendar();
@@ -266,8 +280,17 @@ class TodayView extends St.BoxLayout {
             orientation: Clutter.Orientation.VERTICAL,
             style_class: 'bn-events',
         });
+        const scroll = new St.ScrollView({
+            style_class: 'bn-events-scroll',
+            overlay_scrollbars: true,
+            hscrollbar_policy: St.PolicyType.NEVER,
+            vscrollbar_policy: St.PolicyType.AUTOMATIC,
+            x_expand: true,
+            y_expand: true,
+            child: this._events,
+        });
         column.add_child(this._eventsTitle);
-        column.add_child(this._events);
+        column.add_child(scroll);
 
         this._date = new Date();
         this._eventSource.connectObject('changed', () => this._syncEvents(), this);
@@ -296,7 +319,7 @@ class TodayView extends St.BoxLayout {
 
         this._events.destroy_all_children();
         const events = this._eventSource.getEvents(begin, end);
-        for (const event of events.slice(0, MAX_EVENTS)) {
+        for (const event of events) {
             const row = new St.BoxLayout({style_class: 'bn-event'});
             const allDay = event.date <= begin && event.end >= end;
             const start = GLib.DateTime.new_from_unix_local(event.date.getTime() / 1000);
@@ -309,8 +332,6 @@ class TodayView extends St.BoxLayout {
         }
         if (events.length === 0)
             this._events.add_child(new St.Label({style_class: 'bn-event-empty', text: 'No events'}));
-        else if (events.length > MAX_EVENTS)
-            this._events.add_child(new St.Label({style_class: 'bn-event-empty', text: `${events.length - MAX_EVENTS} more`}));
     }
 });
 

@@ -84,7 +84,10 @@ export class SpringAnimator {
 
     _tick() {
         const now = GLib.get_monotonic_time();
-        const dt = Math.min((now - this._last) / GLib.USEC_PER_SEC, MAX_FRAME);
+        // Follow GNOME's "slow down animations" setting, like the shell's
+        // own animations do.
+        const slowDown = St.Settings.get().slow_down_factor || 1;
+        const dt = Math.min((now - this._last) / GLib.USEC_PER_SEC / slowDown, MAX_FRAME);
         this._last = now;
 
         this._springs.forEach(s => s.step(dt));

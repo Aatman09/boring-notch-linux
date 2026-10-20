@@ -324,17 +324,17 @@
   padding-top: 10px;
 }
 
+/* Notifications and the calendar each get half, split by the divider. */
 .bn-messages {
-  width: 400px;
+  min-width: 360px;
 }
 
 .bn-today-column {
   spacing: 6px;
-  min-width: 320px;
 }
 
-#boring-notch .bn-messages {
-  color: #ffffff;
+.bn-events-scroll {
+  min-height: 40px;
 }
 
 /* Opaque, because GNOME stacks the cards of a collapsed group. */
@@ -352,12 +352,12 @@
 }
 
 #boring-notch .message-list-clear-button {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: #1c1c1e;
   color: #ffffff;
 }
 
 #boring-notch .message-list-clear-button:hover {
-  background-color: rgba(255, 255, 255, 0.18);
+  background-color: #2c2c2e;
 }
 
 /* The calendar keeps the theme's accent colour and sizes; only the
@@ -411,7 +411,8 @@
 }
 
 .bn-event-time {
-  color: #0a84ff;
+  min-width: 44px;
+  color: #8e8e93;
   font-feature-settings: "tnum";
 }
 
