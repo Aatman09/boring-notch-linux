@@ -589,8 +589,15 @@
   font-size: 12px;
 }
 
+/* The theme's cells are about 53px square, which leaves the events under
+   the month a sliver. Smaller cells give the month 6 rows in about 200px. */
 #boring-notch .calendar-day {
   font-size: 14px;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  min-height: 34px;
+  margin: 1px 0;
 }
 
 #boring-notch .message-source-title,
