@@ -14,6 +14,10 @@
       <default>true</default>
       <summary>Peek when a Bluetooth device connects or disconnects, with its battery level when known</summary>
     </key>
+    <key name="show-dnd" type="b">
+      <default>true</default>
+      <summary>Show a moon beside the clock and a peek while Do Not Disturb is on</summary>
+    </key>
     <key name="open-on-hover" type="b">
       <default>true</default>
       <summary>Open the notch when the pointer rests on it</summary>

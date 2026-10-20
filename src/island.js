@@ -48,6 +48,7 @@ const TIMER_DONE_TIMEOUT_MS = 6000;
 const MUSIC_PEEK_TIMEOUT_MS = 3000;
 const PRIVACY_TIMEOUT_MS = 3000;
 const SCREENSHOT_TIMEOUT_MS = 4000;
+const DND_TIMEOUT_MS = 2500;
 // A notch opened from the keyboard closes by itself unless the pointer
 // comes to it.
 const KEYBOARD_OPEN_MS = 4000;
@@ -136,9 +137,19 @@ class Island extends St.Widget {
             this._privacyBox.add_child(dot);
         }
         this._privacyState = privacy?.state ?? {mic: [], camera: false, sharing: false};
+        // Do Not Disturb is the show-banners key with banners stopped.
+        this._dndSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.notifications'});
+        this._dnd = !this._dndSettings.get_boolean('show-banners');
+        this._dndMoon = new St.Icon({
+            icon_name: 'weather-clear-night-symbolic',
+            style_class: 'bn-dnd-moon',
+            visible: false,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
         this._clockBox.add_child(this._clockLabel);
         this._clockBox.add_child(this._unreadDot);
         this._clockBox.add_child(this._privacyBox);
+        this._clockBox.add_child(this._dndMoon);
         this._closedLayer.add_child(this._clockBox);
         this._wallClock = new GnomeDesktop.WallClock();
         this._wallClock.bind_property('clock', this._clockLabel, 'text', GObject.BindingFlags.SYNC_CREATE);
@@ -152,10 +163,11 @@ class Island extends St.Widget {
         this._privacyPeek = new IconTextView('bn-privacy-peek', 145, {peek: true});
         this._screenshotPeek = new ScreenshotPeekView();
         this._bluetoothPeek = new IconTextView('bn-bluetooth-peek', 130, {peek: true});
+        this._dndPeek = new IconTextView('bn-dnd-peek', 110, {peek: true});
         this._musicPeek = new MusicPeekView();
         [this._liveMedia, this._hud, this._batterySneak, this._timerLive,
             this._downloadLive, this._messageSneak, this._privacyPeek,
-            this._screenshotPeek, this._bluetoothPeek, this._musicPeek]
+            this._screenshotPeek, this._bluetoothPeek, this._dndPeek, this._musicPeek]
             .forEach(v => this._closedLayer.add_child(v));
         this._closedView = null;
 
@@ -163,6 +175,7 @@ class Island extends St.Widget {
             settings,
             battery,
             timer,
+            dndSettings: this._dndSettings,
             openPreferences: () => {
                 this.close();
                 openPreferences();
@@ -193,6 +206,7 @@ class Island extends St.Widget {
             'changed::visualizer-follows-audio', () => this._syncVisualizer(),
             'changed::show-downloads', () => this._relayout(),
             'changed::show-privacy-indicators', () => this._syncPrivacyDots(),
+            'changed::show-dnd', () => this._syncMoon(),
             this);
         zoom.connectObject('changed', () => this._relayout(true), this);
         this._clockLabel.connect('notify::text', () => this._relayout());
@@ -219,6 +233,8 @@ class Island extends St.Widget {
             'changed', () => this._syncDownloads(),
             'finished', (_d, file) => this._onDownloadFinished(file),
             this);
+        this._dndSettings.connectObject('changed::show-banners',
+            () => this._onBannersChanged(), this);
         Main.layoutManager.connectObject('monitors-changed', () => this._relayout(true), this);
         Main.panel.connectObject('notify::height', () => this._relayout(true), this);
         const themeContext = St.ThemeContext.get_for_stage(global.stage);
@@ -235,6 +251,7 @@ class Island extends St.Widget {
         this._syncClock();
         this._syncUnread();
         this._syncPrivacyDots();
+        this._syncMoon();
         this._syncMedia();
         this._syncTimer();
         this._syncDownloads();
@@ -474,6 +491,32 @@ class Island extends St.Widget {
             priority: Priority.STATUS,
             key: 'bluetooth',
         });
+    }
+
+    // The moon takes the show-dnd setting into account on every change,
+    // since it is standing UI; the peek only fires for real key changes.
+    _syncMoon() {
+        this._dnd = !this._dndSettings.get_boolean('show-banners');
+        this._dndMoon.visible = this._settings.get_boolean('show-dnd') && this._dnd;
+        this._relayout();
+    }
+
+    _onBannersChanged() {
+        const dnd = !this._dndSettings.get_boolean('show-banners');
+        if (dnd !== this._dnd && this._settings.get_boolean('show-dnd') &&
+            this._state === State.CLOSED) {
+            this._showPeek({
+                view: this._dndPeek,
+                apply: () => this._dndPeek.update({
+                    iconName: 'weather-clear-night-symbolic',
+                    title: dnd ? 'Do Not Disturb on' : 'Do Not Disturb off',
+                }),
+                timeout: DND_TIMEOUT_MS,
+                priority: Priority.STATUS,
+                key: 'dnd',
+            });
+        }
+        this._syncMoon();
     }
 
     _onTimerFinished() {

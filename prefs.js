@@ -186,6 +186,8 @@ function peeksPage(settings) {
         'Show the screenshot instead of the notification text for a moment; click it to open the file'));
     awareness.add(switchRow(settings, 'show-bluetooth', 'Bluetooth devices',
         'Peek when a device connects or disconnects, with its battery level when known'));
+    awareness.add(switchRow(settings, 'show-dnd', 'Do Not Disturb',
+        'Show a moon beside the clock while Do Not Disturb is on, and a peek when it changes. The switch in the header of the open notch always works.'));
     page.add(group);
     page.add(awareness);
     return page;

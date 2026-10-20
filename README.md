@@ -47,6 +47,8 @@ the pointer on it.
   text notification. Click it to open the file.
 - **Bluetooth:** a peek when a device connects or disconnects, with its
   battery level when the device reports one.
+- **Do Not Disturb:** a moon beside the clock while it is on, a peek when it
+  changes, and a switch in the notch's header.
 - **System peeks:** a moon beside the clock while Do Not Disturb is on, a
   screenshot thumbnail when you take one, a peek when a Bluetooth device
   connects or disconnects, and Caps Lock and keyboard layout changes.
