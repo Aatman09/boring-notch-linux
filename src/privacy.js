@@ -1,3 +1,4 @@
+import Gvc from 'gi://Gvc';
 import Shell from 'gi://Shell';
 
 import {EventEmitter} from 'resource:///org/gnome/shell/misc/signals.js';
@@ -19,22 +20,32 @@ export class PrivacyMonitor extends EventEmitter {
     constructor() {
         super();
 
-        this._micApps = this._readMicApps();
         this._camera = false;
+        this._micApps = this._readMicApps();
         this._handles = new Set();
 
         getMixerControl()?.connectObject(
             'stream-added', () => this._syncMic(),
             'stream-removed', () => this._syncMic(),
+            'state-changed', () => this._onMixerStateChanged(),
             this);
 
         this._cameraMonitor = new Shell.CameraMonitor();
         this._cameraMonitor.connectObject('notify::cameras-in-use',
             () => this._syncCamera(), this);
+        // A camera that is already sending counts as the snapshot, so the
+        // dot lights without a peek.
+        this._camera = !!this._cameraMonitor.cameras_in_use;
 
         this._controller = global.backend.get_remote_access_controller();
         this._controller?.connectObject('new-handle',
             (_c, handle) => this._onNewHandle(handle), this);
+
+        // At login the mixer is still connecting and has seen none of the
+        // streams yet; until it says READY, everything found is a snapshot
+        // instead of an event.
+        this._ready = !getMixerControl() ||
+            getMixerControl().get_state() === Gvc.MixerControlState.READY;
     }
 
     // Apps recording audio. Each stream reports the app's desktop id, or
@@ -54,12 +65,27 @@ export class PrivacyMonitor extends EventEmitter {
             return;
         // Only the first app to start recording gets a peek; others joining
         // or leaving just change the dot.
-        const started = this._micApps.length === 0 && micApps.length > 0;
+        const started = this._ready && this._micApps.length === 0 && micApps.length > 0;
         this._micApps = micApps;
         if (started)
             this._emitStarted('mic', micApps[0]);
         this.emit('changed', {
             mic: micApps, camera: this._camera, sharing: this.sharing,
+        });
+    }
+
+    // READY arrives once the mixer has seen every stream there is, so what
+    // it finds then is the snapshot, whatever when it was seen.
+    _onMixerStateChanged() {
+        const ready = getMixerControl()?.get_state() === Gvc.MixerControlState.READY;
+        if (ready === this._ready)
+            return;
+        this._ready = ready;
+        if (!ready)
+            return;
+        this._micApps = this._readMicApps();
+        this.emit('changed', {
+            mic: this._micApps, camera: this._camera, sharing: this.sharing,
         });
     }
 
