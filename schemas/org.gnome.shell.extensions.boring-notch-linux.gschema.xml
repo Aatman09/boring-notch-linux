@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.boring-notch-linux"
+          path="/org/gnome/shell/extensions/boring-notch-linux/">
+    <key name="open-on-hover" type="b">
+      <default>true</default>
+      <summary>Open the notch when the pointer rests on it</summary>
+    </key>
+    <key name="hover-delay" type="i">
+      <range min="0" max="2000"/>
+      <default>300</default>
+      <summary>How long the pointer must rest on the notch before it opens, in milliseconds</summary>
+    </key>
+    <key name="closed-width" type="i">
+      <range min="120" max="400"/>
+      <default>185</default>
+      <summary>Width of the closed notch, in pixels</summary>
+    </key>
+    <key name="size" type="d">
+      <range min="0.75" max="1.5"/>
+      <default>1.0</default>
+      <summary>Size of the notch and everything in it, as a multiple of the normal size</summary>
+    </key>
+    <key name="clock-mode" type="s">
+      <choices>
+        <choice value="notch"/>
+        <choice value="right"/>
+        <choice value="keep"/>
+      </choices>
+      <default>"notch"</default>
+      <summary>Where the top bar clock goes: inside the notch, moved to the right, or left alone</summary>
+    </key>
+    <key name="replace-osd" type="b">
+      <default>true</default>
+      <summary>Show volume and brightness changes in the notch instead of the GNOME popup</summary>
+    </key>
+    <key name="show-battery-activity" type="b">
+      <default>true</default>
+      <summary>Show a battery peek when a charger is plugged in or removed</summary>
+    </key>
+    <key name="notifications-in-notch" type="b">
+      <default>true</default>
+      <summary>Show new notifications in the notch instead of as GNOME banners</summary>
+    </key>
+    <key name="show-downloads" type="b">
+      <default>true</default>
+      <summary>Show browser downloads in the notch</summary>
+    </key>
+    <key name="show-visualizer" type="b">
+      <default>true</default>
+      <summary>Animate the music bars in the closed notch while something plays</summary>
+    </key>
+  </schema>
+</schemalist>

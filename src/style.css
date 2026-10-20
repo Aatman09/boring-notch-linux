@@ -1,0 +1,454 @@
+/* The notch is always black, like the hardware notch it imitates, so these
+   colours do not follow the light or dark style. */
+
+/* No font-size here: GNOME's calendar and notification list inside the
+   notch keep the theme's sizes, which follow text scaling. Everything of
+   ours sets its own size. */
+#boring-notch {
+  color: #ffffff;
+}
+
+.bn-notch-body {
+  background-color: #000000;
+}
+
+/* Closed notch */
+
+.bn-closed-view {
+  padding: 0 12px;
+}
+
+.bn-closed-left,
+.bn-closed-right {
+  spacing: 6px;
+}
+
+.bn-art-small {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background-size: cover;
+  background-color: #2c2c2e;
+}
+
+.bn-art-small-placeholder {
+  icon-size: 12px;
+  color: #8e8e93;
+}
+
+.bn-visualizer {
+  spacing: 2px;
+  height: 14px;
+}
+
+.bn-visualizer-bar {
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background-color: #d1d1d6;
+}
+
+.bn-hud-icon,
+.bn-battery-icon {
+  icon-size: 16px;
+}
+
+.bn-hud-bar {
+  width: 56px;
+  height: 6px;
+  -barlevel-height: 6px;
+  -barlevel-background-color: rgba(255, 255, 255, 0.2);
+  -barlevel-active-background-color: #ffffff;
+  -barlevel-overdrive-color: #ff9f0a;
+  -barlevel-overdrive-separator-width: 1px;
+}
+
+.bn-hud-value,
+.bn-hud-label {
+  font-size: 12px;
+  font-feature-settings: "tnum";
+  color: #d1d1d6;
+}
+
+.bn-hud-value {
+  min-width: 24px;
+  text-align: right;
+}
+
+.bn-battery-status {
+  font-size: 12px;
+  color: #d1d1d6;
+}
+
+.bn-battery-status.bn-charging {
+  color: #30d158;
+}
+
+.bn-battery-percent {
+  font-size: 12px;
+  font-feature-settings: "tnum";
+}
+
+/* Open notch */
+
+.bn-header {
+  spacing: 8px;
+}
+
+.bn-tab {
+  padding: 3px 10px;
+  margin: 4px 0;
+  border-radius: 99px;
+  font-size: 12px;
+  color: #8e8e93;
+  transition-duration: 150ms;
+}
+
+.bn-tab:hover {
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.bn-tab:checked {
+  background-color: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.bn-tab-content {
+  spacing: 6px;
+}
+
+.bn-tab-icon {
+  icon-size: 12px;
+}
+
+.bn-unread-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  background-color: #0a84ff;
+}
+
+.bn-header-battery {
+  spacing: 4px;
+  font-size: 12px;
+  font-feature-settings: "tnum";
+  color: #d1d1d6;
+}
+
+.bn-header-battery-icon {
+  icon-size: 16px;
+}
+
+.bn-button {
+  padding: 6px;
+  border-radius: 99px;
+  color: #ffffff;
+  transition-duration: 150ms;
+}
+
+.bn-button StIcon {
+  icon-size: 16px;
+}
+
+.bn-button:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.bn-button:active {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.bn-button:insensitive {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.bn-header-button {
+  padding: 4px;
+  color: #8e8e93;
+}
+
+.bn-header-button StIcon {
+  icon-size: 14px;
+}
+
+.bn-toggle {
+  color: #8e8e93;
+}
+
+.bn-toggle:checked {
+  color: #ffffff;
+}
+
+.bn-play StIcon {
+  icon-size: 26px;
+}
+
+.bn-player {
+  spacing: 16px;
+  padding-top: 10px;
+}
+
+.bn-art {
+  width: 90px;
+  height: 90px;
+  border-radius: 13px;
+  background-size: cover;
+  background-color: #2c2c2e;
+}
+
+.bn-art-placeholder {
+  icon-size: 36px;
+  color: #8e8e93;
+}
+
+.bn-player-column {
+  spacing: 2px;
+}
+
+.bn-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.bn-artist {
+  font-size: 13px;
+  color: #8e8e93;
+  margin-bottom: 6px;
+}
+
+.bn-progress {
+  height: 12px;
+  -barlevel-height: 5px;
+  -barlevel-background-color: rgba(255, 255, 255, 0.2);
+  -barlevel-active-background-color: #ffffff;
+  -slider-handle-radius: 0;
+}
+
+.bn-progress:hover {
+  -slider-handle-radius: 6px;
+}
+
+.bn-times {
+  font-size: 11px;
+  font-feature-settings: "tnum";
+  color: #8e8e93;
+}
+
+.bn-controls {
+  spacing: 10px;
+}
+
+.bn-idle {
+  spacing: 2px;
+}
+
+.bn-idle-time {
+  font-size: 40px;
+  font-weight: 400;
+  font-feature-settings: "tnum";
+}
+
+.bn-idle-date {
+  font-size: 13px;
+  color: #d1d1d6;
+}
+
+.bn-idle-hint {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #8e8e93;
+}
+
+/* Clock inside the closed notch */
+
+.bn-clock-box {
+  spacing: 6px;
+}
+
+.bn-clock {
+  font-size: 13px;
+  font-weight: 600;
+  font-feature-settings: "tnum";
+}
+
+/* Timer, downloads and notification peeks */
+
+.bn-icon-text-icon {
+  icon-size: 16px;
+}
+
+.bn-icon-text .bn-closed-right {
+  spacing: 6px;
+}
+
+.bn-icon-text-title {
+  font-size: 12px;
+  font-weight: 600;
+  font-feature-settings: "tnum";
+}
+
+.bn-icon-text-body {
+  font-size: 12px;
+  color: #8e8e93;
+}
+
+.bn-message-sneak .bn-closed-left {
+  spacing: 8px;
+}
+
+.bn-message-sneak .bn-icon-text-icon {
+  icon-size: 20px;
+}
+
+.bn-message-sneak .bn-icon-text-title {
+  max-width: 120px;
+}
+
+.bn-message-sneak .bn-icon-text-body {
+  max-width: 260px;
+}
+
+.bn-timer-live .bn-icon-text-icon {
+  color: #ff9f0a;
+}
+
+.bn-download-live .bn-icon-text-icon {
+  color: #0a84ff;
+}
+
+/* Today tab */
+
+.bn-today {
+  spacing: 20px;
+  padding-top: 10px;
+}
+
+.bn-messages {
+  width: 400px;
+}
+
+.bn-today-column {
+  spacing: 6px;
+  min-width: 320px;
+}
+
+#boring-notch .bn-messages {
+  color: #ffffff;
+}
+
+/* Opaque, because GNOME stacks the cards of a collapsed group. */
+#boring-notch .message {
+  background-color: #1c1c1e;
+  color: #ffffff;
+}
+
+#boring-notch .message:hover {
+  background-color: #2c2c2e;
+}
+
+#boring-notch .message-list-placeholder {
+  color: #8e8e93;
+}
+
+#boring-notch .message-list-clear-button {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+#boring-notch .message-list-clear-button:hover {
+  background-color: rgba(255, 255, 255, 0.18);
+}
+
+/* The calendar keeps the theme's accent colour and sizes; only the
+   backgrounds go, so it sits on the black notch. */
+#boring-notch .calendar,
+#boring-notch .calendar-month-label,
+#boring-notch .calendar-day-heading,
+#boring-notch .calendar-week-number,
+#boring-notch .pager-button {
+  background-color: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+#boring-notch .calendar {
+  padding: 0;
+  margin: 0;
+  color: #ffffff;
+}
+
+#boring-notch .calendar-day {
+  background-color: transparent;
+}
+
+/* Today keeps the system accent colour, as in GNOME's own calendar. */
+#boring-notch .calendar-day.calendar-today {
+  background-color: -st-accent-color;
+  color: -st-accent-fg-color;
+}
+
+#boring-notch .calendar-day:hover,
+#boring-notch .pager-button:hover,
+#boring-notch .calendar-month-label:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.bn-events-title {
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #d1d1d6;
+}
+
+.bn-events {
+  spacing: 4px;
+}
+
+.bn-event {
+  spacing: 10px;
+  font-size: 13px;
+}
+
+.bn-event-time {
+  color: #0a84ff;
+  font-feature-settings: "tnum";
+}
+
+.bn-event-empty {
+  font-size: 13px;
+  color: #8e8e93;
+}
+
+/* Timer tab */
+
+.bn-timer {
+  spacing: 8px;
+}
+
+.bn-timer-time {
+  font-size: 38px;
+  font-weight: 400;
+  font-feature-settings: "tnum";
+}
+
+.bn-timer-presets {
+  spacing: 6px;
+}
+
+.bn-chip {
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 12px;
+  color: #d1d1d6;
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.bn-chip:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.bn-chip:checked {
+  background-color: #ff9f0a;
+  color: #000000;
+}

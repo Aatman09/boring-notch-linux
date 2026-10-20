@@ -1,0 +1,9 @@
+{
+  "uuid": "boring-notch-linux@aatman09.github.io",
+  "name": "Boring Notch",
+  "description": "A Dynamic Island for the GNOME top bar, ported from boring.notch for macOS. Media controls with a visualizer, volume and brightness HUD, and battery activity, all in a notch that springs open on hover.",
+  "shell-version": ["50"],
+  "settings-schema": "org.gnome.shell.extensions.boring-notch-linux",
+  "url": "https://github.com/Aatman09/boring-notch-linux",
+  "version-name": "1.0"
+}
