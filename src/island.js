@@ -887,14 +887,17 @@ class Island extends St.Widget {
         this._artColor?.cancel();
         this._applyArtColor();
         this._artCache.resolve(url, uri => {
-            // Ignore answers for a track that is no longer playing.
+            // Ignore answers for a track that is no longer playing. The
+            // player itself can be gone by now: a cover from a browser
+            // that closed after a track change has no one to update.
             if (this._artUrl !== url || !this._artCache)
                 return;
             this._artUri = uri;
             this._liveMedia.update(uri);
+            const player = this._media.activePlayer;
             if (this._sneak === this._musicPeek)
-                this._musicPeek.update(this._media.activePlayer, uri);
-            this._openView.update(this._media.activePlayer, uri);
+                this._musicPeek.update(player, uri);
+            this._openView.update(player, uri);
             this._loadArtColor(url, uri);
         });
     }

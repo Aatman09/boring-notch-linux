@@ -310,8 +310,12 @@ class MusicPeekView extends ClosedView {
         return false;
     }
 
+    // The player can be gone by the time its cover resolves: a browser
+    // closing after a track change leaves nothing to name.
     update(player, artUri) {
         this._art.set_art(artUri);
+        if (!player)
+            return;
         this._title.text = player.title;
         this._artist.text = player.artists || player.identity;
     }
