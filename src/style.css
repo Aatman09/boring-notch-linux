@@ -378,7 +378,8 @@
 }
 
 .bn-privacy-peek .bn-icon-text-title {
-  max-width: 220px;
+  /* "An app is using the microphone" at the largest text size. */
+  max-width: 240px;
 }
 
 .bn-message-sneak .bn-icon-text-body {
