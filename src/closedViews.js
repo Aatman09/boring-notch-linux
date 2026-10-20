@@ -53,7 +53,7 @@ class ClosedView extends St.BoxLayout {
     }
 });
 
-/**
+/** MusicLiveActivity: album art on the left, visualizer on the right. */
 export const LiveMediaView = GObject.registerClass(
 class LiveMediaView extends ClosedView {
     _init(audio) {
