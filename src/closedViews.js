@@ -193,23 +193,33 @@ export const ScreenshotPeekView = GObject.registerClass(
 class ScreenshotPeekView extends ClosedView {
     _init() {
         super._init('bn-screenshot-peek');
-        // GNOME hands the screenshot over as an St.ImageContent, which
-        // always shows whole, whatever its size.
+        // One group, thumbnail then caption, centred in the notch: the base
+        // layout instead lands its children at the notch's edges, which
+        // leaves the caption far from the picture. GNOME hands the
+        // screenshot over as an St.ImageContent, which always shows whole,
+        // whatever its size.
         this._thumbnail = new St.Widget({
             style_class: 'bn-screenshot-thumbnail',
             content_gravity: Clutter.ContentGravity.RESIZE_ASPECT,
         });
-        this.left.add_child(this._thumbnail);
         this._caption = new St.Label({
             style_class: 'bn-screenshot-caption',
             text: 'Screenshot',
             y_align: Clutter.ActorAlign.CENTER,
         });
-        this.right.add_child(this._caption);
+        const [left, gap, right] = this.get_children();
+        this.remove_child(gap);
+        this.remove_child(right);
+        left.x_expand = true;
+        left.x_align = Clutter.ActorAlign.CENTER;
+        left.add_child(this._thumbnail);
+        left.add_child(this._caption);
     }
 
     sideWidth() {
-        return 120;
+        // The thumbnail, the caption and the padding, with room to spare
+        // for the caption at the largest text size.
+        return 64;
     }
 
     // Room for the thumbnail under the panel height.
