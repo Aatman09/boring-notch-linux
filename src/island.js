@@ -668,8 +668,6 @@ class Island extends St.Widget {
     }
 
     _startPeek(peek) {
-        if (peek.view !== this._screenshotPeek)
-            this._releaseScreenshot();
         peek.apply?.();
         this._sneak = peek.view;
         this._sneakAction = peek.action;
@@ -687,7 +685,6 @@ class Island extends St.Widget {
             this._startPeek(this._peeks[0]);
             return;
         }
-        this._releaseScreenshot();
         this._sneak = null;
         this._sneakAction = null;
         // The timer view doubles as its own "done" peek; put it back.
@@ -698,18 +695,9 @@ class Island extends St.Widget {
     _clearPeeks() {
         this._clearTimeout('sneak');
         this._peeks = [];
-        this._releaseScreenshot();
         this._sneak = null;
         this._sneakAction = null;
         this._syncTimer();
-    }
-
-    // The screenshot peek holds the screenshot's texture while it shows;
-    // drop it otherwise, so it is not kept in memory for a peek that may
-    // not come again soon.
-    _releaseScreenshot() {
-        if (this._sneak === this._screenshotPeek)
-            this._screenshotPeek.clear();
     }
 
     _syncTimer() {
@@ -1121,8 +1109,10 @@ class Island extends St.Widget {
             duration: FADE_MS,
             mode: Clutter.AnimationMode.EASE_OUT_QUAD,
             onStopped: isFinished => {
-                if (isFinished && !visible)
+                if (isFinished && !visible) {
                     actor.hide();
+                    actor.onHidden?.();
+                }
             },
         });
     }

@@ -46,6 +46,12 @@ class ClosedView extends St.BoxLayout {
         return 0;
     }
 
+    // Called by the island once a fade-out of this view has finished, so a
+    // view can let things go that must stay visible while fading. The
+    // default has nothing to let go of.
+    onHidden() {
+    }
+
     // Live activities leave the middle free for the clock. Peeks use the
     // whole notch, so the clock steps aside for them.
     get showsClock() {
@@ -219,9 +225,9 @@ class ScreenshotPeekView extends ClosedView {
         this._thumbnail.content = gicon;
     }
 
-    // Dropping the content unloads the texture, so the screenshot does not
-    // stay in memory while something else is showing.
-    clear() {
+    // The content keeps the texture; dropping it during the fade-out would
+    // make the picture vanish while the notch is still showing it.
+    onHidden() {
         this._thumbnail.content = null;
     }
 });
