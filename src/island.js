@@ -103,6 +103,9 @@ class Island extends St.Widget {
         this._peeks = [];
         this._sneak = null;
         this._sneakAction = null;
+        // gnome-settings-daemon's battery notice is dropped for this long
+        // after one of our battery-level peeks; zero means never drop.
+        this._batteryNoticeUntil = 0;
         this._gesture = {dx: 0, dy: 0, time: 0, done: false};
         this._soundSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.sound'});
         this._touchpadSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.peripherals.touchpad'});
@@ -148,7 +151,7 @@ class Island extends St.Widget {
             this._privacyDots[kind] = dot;
             this._privacyBox.add_child(dot);
         }
-        this._privacyState = privacy?.state ?? {mic: [], camera: false, sharing: false};
+        this._privacyState = privacy.state;
         // Do Not Disturb is the show-banners key with banners stopped.
         this._dndSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.notifications'});
         this._dnd = !this._dndSettings.get_boolean('show-banners');
@@ -407,7 +410,7 @@ class Island extends St.Widget {
         // just ended, so low and full battery do not pop twice.
         if (notification.gicon instanceof Gio.ThemedIcon &&
             notification.gicon.names.some(name => name.startsWith('battery')) &&
-            GLib.get_monotonic_time() < (this._batteryNoticeUntil ?? 0))
+            GLib.get_monotonic_time() < this._batteryNoticeUntil)
             return true;
 
         // GNOME posts one notification per screenshot and puts the image in

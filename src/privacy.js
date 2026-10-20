@@ -141,7 +141,7 @@ export class PrivacyMonitor extends EventEmitter {
         getMixerControl()?.disconnectObject(this);
         this._cameraMonitor?.disconnectObject(this);
         this._controller?.disconnectObject(this);
-        for (const handle of this._handles ?? [])
+        for (const handle of this._handles)
             handle.disconnectObject(this);
         this._handles.clear();
         this.disconnectAll();
