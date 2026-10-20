@@ -10,7 +10,7 @@ import {AlbumArt, Visualizer} from './widgets.js';
 // on the left and right of the middle, which stays empty like the hardware
 // notch on a MacBook. Each view says how much width it adds on each side.
 
-const ClosedView = GObject.registerClass(
+export const ClosedView = GObject.registerClass(
 class ClosedView extends St.BoxLayout {
     _init(styleClass) {
         super._init({
@@ -37,6 +37,12 @@ class ClosedView extends St.BoxLayout {
 
     // Extra width on each side of the bare notch, in design pixels.
     sideWidth(_notchHeight) {
+        return 0;
+    }
+
+    // Extra height under the panel height, for peeks taller than the top
+    // bar, in design pixels.
+    extraHeight() {
         return 0;
     }
 
@@ -152,17 +158,72 @@ class BatterySneakView extends ClosedView {
         return false;
     }
 
-    update(battery) {
-        if (battery.charging)
-            this._status.text = 'Charging';
+    update(battery, levelMark = null) {
+        if (levelMark === 'full')
+            this._status.text = 'Fully charged';
+        else if (levelMark === 'critical')
+            this._status.text = 'Critical battery';
+        else if (levelMark)
+            this._status.text = 'Low battery';
         else
-            this._status.text = battery.pluggedIn ? 'Plugged in' : 'On battery';
+            this._status.text = battery.charging ? 'Charging'
+                : battery.pluggedIn ? 'Plugged in' : 'On battery';
         this._percent.text = `${battery.percentage}%`;
         this._icon.icon_name = battery.iconName;
-        if (battery.pluggedIn)
+        this._status.remove_style_class_name('bn-low');
+        this._status.remove_style_class_name('bn-full');
+        if (levelMark === 'full')
+            this._status.add_style_class_name('bn-full');
+        else if (levelMark)
+            this._status.add_style_class_name('bn-low');
+        else if (battery.pluggedIn)
             this._status.add_style_class_name('bn-charging');
         else
             this._status.remove_style_class_name('bn-charging');
+    }
+});
+
+/** The thumbnail of a screenshot that was just taken, shown as a peek. */
+export const ScreenshotPeekView = GObject.registerClass(
+class ScreenshotPeekView extends ClosedView {
+    _init() {
+        super._init('bn-screenshot-peek');
+        // GNOME hands the screenshot over as an St.ImageContent, which
+        // always shows whole, whatever its size.
+        this._thumbnail = new St.Widget({
+            style_class: 'bn-screenshot-thumbnail',
+            content_gravity: Clutter.ContentGravity.RESIZE_ASPECT,
+        });
+        this.left.add_child(this._thumbnail);
+        this._caption = new St.Label({
+            style_class: 'bn-screenshot-caption',
+            text: 'Screenshot',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        this.right.add_child(this._caption);
+    }
+
+    sideWidth() {
+        return 120;
+    }
+
+    // Room for the thumbnail under the panel height.
+    extraHeight() {
+        return 90;
+    }
+
+    get showsClock() {
+        return false;
+    }
+
+    update(gicon) {
+        this._thumbnail.content = gicon;
+    }
+
+    // Dropping the content unloads the texture, so the screenshot does not
+    // stay in memory while something else is showing.
+    clear() {
+        this._thumbnail.content = null;
     }
 });
 

@@ -86,6 +86,14 @@
   color: #30d158;
 }
 
+.bn-battery-status.bn-low {
+  color: #ff453a;
+}
+
+.bn-battery-status.bn-full {
+  color: #30d158;
+}
+
 .bn-battery-percent {
   font-size: 12px;
   font-feature-settings: "tnum";
@@ -131,6 +139,60 @@
   height: 6px;
   border-radius: 3px;
   background-color: #0a84ff;
+}
+
+/* Privacy dots: one per kind of use, hidden while that kind is off */
+.bn-privacy {
+  spacing: 4px;
+}
+
+.bn-privacy-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+}
+
+.bn-privacy-mic {
+  background-color: #ff9f0a;
+}
+
+.bn-privacy-camera {
+  background-color: #30d158;
+}
+
+.bn-privacy-sharing {
+  background-color: #0a84ff;
+}
+
+/* Screenshot peek: the thumbnail hangs under the top bar */
+.bn-screenshot-thumbnail {
+  width: 160px;
+  height: 84px;
+  border-radius: 6px;
+}
+
+.bn-screenshot-caption {
+  font-size: 12px;
+  color: #aeaeb2;
+  font-weight: 500;
+}
+
+.bn-bluetooth-peek .bn-icon-text-title {
+  max-width: 140px;
+}
+
+/* Do Not Disturb: moon and peek switch colour with its state */
+.bn-dnd-moon {
+  icon-size: 12px;
+  color: #ff9f0a;
+}
+
+.bn-dnd-peek .bn-icon-text-icon {
+  color: #ff9f0a;
+}
+
+.bn-keyboard-peek .bn-icon-text-title {
+  max-width: 120px;
 }
 
 .bn-header-battery {
@@ -313,6 +375,10 @@
 
 .bn-message-sneak .bn-icon-text-title {
   max-width: 120px;
+}
+
+.bn-privacy-peek .bn-icon-text-title {
+  max-width: 220px;
 }
 
 .bn-message-sneak .bn-icon-text-body {

@@ -10,7 +10,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {getMixerControl} from 'resource:///org/gnome/shell/ui/status/volume.js';
 
-import {BatterySneakView, IconTextView, InlineHudView, LiveMediaView, MusicPeekView} from './closedViews.js';
+import {BatterySneakView, IconTextView, InlineHudView, LiveMediaView, MusicPeekView, ScreenshotPeekView} from './closedViews.js';
 import {NotchShape} from './notchShape.js';
 import {OpenView} from './openView.js';
 import {Spring, SpringAnimator} from './spring.js';
@@ -41,10 +41,19 @@ const FALLBACK_PANEL_HEIGHT = 32;
 const CLOSE_DELAY_MS = 100;
 const HUD_TIMEOUT_MS = 1500;
 const BATTERY_TIMEOUT_MS = 2500;
+const BATTERY_LEVEL_TIMEOUT_MS = 4000;
+// gnome-settings-daemon posts its own battery notification when a warning
+// level is reached; one is not worth two for this long after ours.
+const BATTERY_NOTICE_WINDOW_MS = 2000;
+const BLUETOOTH_TIMEOUT_MS = 2500;
 const NOTIFICATION_TIMEOUT_MS = 4000;
 const DOWNLOAD_TIMEOUT_MS = 4000;
 const TIMER_DONE_TIMEOUT_MS = 6000;
 const MUSIC_PEEK_TIMEOUT_MS = 3000;
+const PRIVACY_TIMEOUT_MS = 3000;
+const SCREENSHOT_TIMEOUT_MS = 4000;
+const DND_TIMEOUT_MS = 2500;
+const KEYBOARD_TIMEOUT_MS = 1200;
 // A notch opened from the keyboard closes by itself unless the pointer
 // comes to it.
 const KEYBOARD_OPEN_MS = 4000;
@@ -71,7 +80,7 @@ const VOLUME_STEP = 0.05;
 
 export const Island = GObject.registerClass(
 class Island extends St.Widget {
-    _init({settings, zoom, media, battery, timer, downloads, audio, artCache, openPreferences}) {
+    _init({settings, zoom, media, battery, timer, downloads, audio, privacy, bluetooth, keyboard, artCache, openPreferences}) {
         super._init({
             name: 'boring-notch',
             reactive: true,
@@ -85,6 +94,9 @@ class Island extends St.Widget {
         this._battery = battery;
         this._timer = timer;
         this._downloads = downloads;
+        this._privacy = privacy;
+        this._bluetooth = bluetooth;
+        this._keyboard = keyboard;
         this._artCache = artCache;
         this._state = State.CLOSED;
         this._tab = 'home';
@@ -119,8 +131,31 @@ class Island extends St.Widget {
         // Never shorten the time: the notch is sized to fit it.
         this._clockLabel.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
         this._unreadDot = new St.Widget({style_class: 'bn-unread-dot', y_align: Clutter.ActorAlign.CENTER});
+        this._privacyBox = new St.BoxLayout({style_class: 'bn-privacy', y_align: Clutter.ActorAlign.CENTER});
+        this._privacyDots = {};
+        for (const kind of ['mic', 'camera', 'sharing']) {
+            const dot = new St.Widget({
+                style_class: `bn-privacy-dot bn-privacy-${kind}`,
+                visible: false,
+                y_align: Clutter.ActorAlign.CENTER,
+            });
+            this._privacyDots[kind] = dot;
+            this._privacyBox.add_child(dot);
+        }
+        this._privacyState = privacy?.state ?? {mic: [], camera: false, sharing: false};
+        // Do Not Disturb is the show-banners key with banners stopped.
+        this._dndSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.notifications'});
+        this._dnd = !this._dndSettings.get_boolean('show-banners');
+        this._dndMoon = new St.Icon({
+            icon_name: 'weather-clear-night-symbolic',
+            style_class: 'bn-dnd-moon',
+            visible: false,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
         this._clockBox.add_child(this._clockLabel);
         this._clockBox.add_child(this._unreadDot);
+        this._clockBox.add_child(this._privacyBox);
+        this._clockBox.add_child(this._dndMoon);
         this._closedLayer.add_child(this._clockBox);
         this._wallClock = new GnomeDesktop.WallClock();
         this._wallClock.bind_property('clock', this._clockLabel, 'text', GObject.BindingFlags.SYNC_CREATE);
@@ -131,9 +166,16 @@ class Island extends St.Widget {
         this._timerLive = new IconTextView('bn-timer-live', 52);
         this._downloadLive = new IconTextView('bn-download-live', 52);
         this._messageSneak = new IconTextView('bn-message-sneak', 150, {peek: true});
+        this._privacyPeek = new IconTextView('bn-privacy-peek', 145, {peek: true});
+        this._screenshotPeek = new ScreenshotPeekView();
+        this._bluetoothPeek = new IconTextView('bn-bluetooth-peek', 130, {peek: true});
+        this._dndPeek = new IconTextView('bn-dnd-peek', 110, {peek: true});
+        this._keyboardPeek = new IconTextView('bn-keyboard-peek', 105, {peek: true});
         this._musicPeek = new MusicPeekView();
         [this._liveMedia, this._hud, this._batterySneak, this._timerLive,
-            this._downloadLive, this._messageSneak, this._musicPeek]
+            this._downloadLive, this._messageSneak, this._privacyPeek,
+            this._screenshotPeek, this._bluetoothPeek, this._dndPeek,
+            this._keyboardPeek, this._musicPeek]
             .forEach(v => this._closedLayer.add_child(v));
         this._closedView = null;
 
@@ -141,6 +183,7 @@ class Island extends St.Widget {
             settings,
             battery,
             timer,
+            dndSettings: this._dndSettings,
             openPreferences: () => {
                 this.close();
                 openPreferences();
@@ -170,6 +213,8 @@ class Island extends St.Widget {
             'changed::show-visualizer', () => this._syncVisualizer(),
             'changed::visualizer-follows-audio', () => this._syncVisualizer(),
             'changed::show-downloads', () => this._relayout(),
+            'changed::show-privacy-indicators', () => this._syncPrivacyDots(),
+            'changed::show-dnd', () => this._syncMoon(),
             this);
         zoom.connectObject('changed', () => this._relayout(true), this);
         this._clockLabel.connect('notify::text', () => this._relayout());
@@ -179,7 +224,23 @@ class Island extends St.Widget {
             'changed', () => this._syncMedia(),
             'track-changed', (_m, player) => this._onTrackChanged(player),
             this);
-        battery.connectObject('plugged', () => this._onPlugged(), this);
+        battery.connectObject(
+            'plugged', () => this._onPlugged(),
+            'warning', (_m, level) => this._onBatteryWarning(level),
+            'full', () => this._onBatteryFull(),
+            this);
+        privacy.connectObject(
+            'changed', (_p, state) => this._onPrivacyChanged(state),
+            'started', (_p, kind, appName) => this._onPrivacyStarted(kind, appName),
+            this);
+        bluetooth.connectObject(
+            'connected', (_b, device) => this._onBluetooth(device, true),
+            'disconnected', (_b, device) => this._onBluetooth(device, false),
+            this);
+        keyboard.connectObject(
+            'caps-lock', (_k, on) => this._onCapsLock(on),
+            'layout', (_k, source) => this._onLayoutChanged(source),
+            this);
         timer.connectObject(
             'changed', () => this._syncTimer(),
             'finished', () => this._onTimerFinished(),
@@ -188,6 +249,8 @@ class Island extends St.Widget {
             'changed', () => this._syncDownloads(),
             'finished', (_d, file) => this._onDownloadFinished(file),
             this);
+        this._dndSettings.connectObject('changed::show-banners',
+            () => this._onBannersChanged(), this);
         Main.layoutManager.connectObject('monitors-changed', () => this._relayout(true), this);
         Main.panel.connectObject('notify::height', () => this._relayout(true), this);
         const themeContext = St.ThemeContext.get_for_stage(global.stage);
@@ -203,6 +266,8 @@ class Island extends St.Widget {
 
         this._syncClock();
         this._syncUnread();
+        this._syncPrivacyDots();
+        this._syncMoon();
         this._syncMedia();
         this._syncTimer();
         this._syncDownloads();
@@ -325,6 +390,31 @@ class Island extends St.Widget {
     showNotification(notification) {
         if (this._state === State.OPEN || !this.visible)
             return false;
+
+        // A gicon named after the battery is gnome-settings-daemon's own
+        // battery notice; drop it while our battery-level peek is on or has
+        // just ended, so low and full battery do not pop twice.
+        if (notification.gicon instanceof Gio.ThemedIcon &&
+            notification.gicon.names.some(name => name.startsWith('battery')) &&
+            GLib.get_monotonic_time() < (this._batteryNoticeUntil ?? 0))
+            return true;
+
+        // GNOME posts one notification per screenshot and puts the image in
+        // gicon itself; recordings come with an ordinary icon. Match on the
+        // icon's type, never on the translated text.
+        if (this._settings.get_boolean('screenshot-peek') &&
+            notification.gicon instanceof St.ImageContent) {
+            this._showPeek({
+                view: this._screenshotPeek,
+                apply: () => this._screenshotPeek.update(notification.gicon),
+                timeout: SCREENSHOT_TIMEOUT_MS,
+                action: () => notification.activate(),
+                priority: Priority.NOTIFICATION,
+                key: 'screenshot',
+            });
+            return true;
+        }
+
         const content = {
             icon: notification.gicon ?? notification.source?.icon ?? null,
             iconName: 'preferences-system-notifications-symbolic',
@@ -364,6 +454,139 @@ class Island extends St.Widget {
             apply: () => this._batterySneak.update(this._battery),
             timeout: BATTERY_TIMEOUT_MS,
             key: 'battery',
+        });
+    }
+
+    _onBatteryWarning(level) {
+        this._showBatteryLevel(level >= 4 ? 'critical' : 'low');
+    }
+
+    _onBatteryFull() {
+        this._showBatteryLevel('full');
+    }
+
+    _showBatteryLevel(mark) {
+        if (!this._settings.get_boolean('show-battery-warnings') || this._state === State.OPEN)
+            return;
+        this._batteryNoticeUntil = GLib.get_monotonic_time() +
+            1000 * (BATTERY_LEVEL_TIMEOUT_MS + BATTERY_NOTICE_WINDOW_MS);
+        this._showPeek({
+            view: this._batterySneak,
+            apply: () => this._batterySneak.update(this._battery, mark),
+            timeout: BATTERY_LEVEL_TIMEOUT_MS,
+            priority: mark === 'critical' ? Priority.NOTIFICATION : Priority.STATUS,
+            key: 'battery-level',
+        });
+    }
+
+    _onPrivacyChanged(state) {
+        this._privacyState = state;
+        this._syncPrivacyDots();
+    }
+
+    // One dot per kind of use, beside the clock. Hidden kinds add no width,
+    // so the notch only changes shape when they appear.
+    _syncPrivacyDots() {
+        const show = this._settings.get_boolean('show-privacy-indicators');
+        const {mic, camera, sharing} = this._privacyState;
+        this._privacyDots.mic.visible = show && mic.length > 0;
+        this._privacyDots.camera.visible = show && camera;
+        this._privacyDots.sharing.visible = show && sharing;
+        this._relayout();
+    }
+
+    _onPrivacyStarted(kind, appName) {
+        if (!this._settings.get_boolean('show-privacy-indicators') ||
+            this._state === State.OPEN)
+            return;
+        const usingMic = kind === 'mic';
+        this._showPeek({
+            view: this._privacyPeek,
+            apply: () => this._privacyPeek.update({
+                iconName: usingMic ? 'audio-input-microphone-symbolic' : 'camera-web-symbolic',
+                title: appName
+                    ? `${appName} is using the ${usingMic ? 'microphone' : 'camera'}`
+                    : `An app is using the ${usingMic ? 'microphone' : 'camera'}`,
+            }),
+            timeout: PRIVACY_TIMEOUT_MS,
+            action: () => {
+                try {
+                    Gio.Subprocess.new(['gnome-control-center', 'privacy'],
+                        Gio.SubprocessFlags.NONE);
+                } catch (e) {
+                    console.warn(`Boring Notch: cannot open the privacy panel: ${e.message}`);
+                }
+            },
+            priority: Priority.STATUS,
+            key: 'privacy',
+        });
+    }
+
+    _onBluetooth(device, connected) {
+        if (!this._settings.get_boolean('show-bluetooth') || this._state === State.OPEN)
+            return;
+        this._showPeek({
+            view: this._bluetoothPeek,
+            apply: () => this._bluetoothPeek.update({
+                icon: device.icon,
+                title: device.alias,
+                body: device.battery !== null ? `${device.battery}%`
+                    : connected ? 'Connected' : 'Disconnected',
+            }),
+            timeout: BLUETOOTH_TIMEOUT_MS,
+            priority: Priority.STATUS,
+            key: 'bluetooth',
+        });
+    }
+
+    // The moon takes the show-dnd setting into account on every change,
+    // since it is standing UI; the peek only fires for real key changes.
+    _syncMoon() {
+        this._dnd = !this._dndSettings.get_boolean('show-banners');
+        this._dndMoon.visible = this._settings.get_boolean('show-dnd') && this._dnd;
+        this._relayout();
+    }
+
+    _onBannersChanged() {
+        const dnd = !this._dndSettings.get_boolean('show-banners');
+        if (dnd !== this._dnd && this._settings.get_boolean('show-dnd') &&
+            this._state === State.CLOSED) {
+            this._showPeek({
+                view: this._dndPeek,
+                apply: () => this._dndPeek.update({
+                    iconName: 'weather-clear-night-symbolic',
+                    title: dnd ? 'Do Not Disturb on' : 'Do Not Disturb off',
+                }),
+                timeout: DND_TIMEOUT_MS,
+                priority: Priority.STATUS,
+                key: 'dnd',
+            });
+        }
+        this._syncMoon();
+    }
+
+    // Caps Lock and layout changes share one peek, so pressing both in
+    // short order updates it instead of queueing two.
+    _onCapsLock(on) {
+        this._showKeyboard(on ? 'Caps Lock on' : 'Caps Lock off');
+    }
+
+    _onLayoutChanged(source) {
+        this._showKeyboard(source.shortName, source.displayName);
+    }
+
+    _showKeyboard(title, body = '') {
+        if (!this._settings.get_boolean('show-keyboard') || this._state === State.OPEN)
+            return;
+        this._showPeek({
+            view: this._keyboardPeek,
+            apply: () => this._keyboardPeek.update({
+                iconName: 'input-keyboard-symbolic',
+                title, body,
+            }),
+            timeout: KEYBOARD_TIMEOUT_MS,
+            priority: Priority.STATUS,
+            key: 'keyboard',
         });
     }
 
@@ -429,6 +652,8 @@ class Island extends St.Widget {
     }
 
     _startPeek(peek) {
+        if (peek.view !== this._screenshotPeek)
+            this._releaseScreenshot();
         peek.apply?.();
         this._sneak = peek.view;
         this._sneakAction = peek.action;
@@ -446,6 +671,7 @@ class Island extends St.Widget {
             this._startPeek(this._peeks[0]);
             return;
         }
+        this._releaseScreenshot();
         this._sneak = null;
         this._sneakAction = null;
         // The timer view doubles as its own "done" peek; put it back.
@@ -456,9 +682,18 @@ class Island extends St.Widget {
     _clearPeeks() {
         this._clearTimeout('sneak');
         this._peeks = [];
+        this._releaseScreenshot();
         this._sneak = null;
         this._sneakAction = null;
         this._syncTimer();
+    }
+
+    // The screenshot peek holds the screenshot's texture while it shows;
+    // drop it otherwise, so it is not kept in memory for a peek that may
+    // not come again soon.
+    _releaseScreenshot() {
+        if (this._sneak === this._screenshotPeek)
+            this._screenshotPeek.clear();
     }
 
     _syncTimer() {
@@ -602,7 +837,7 @@ class Island extends St.Widget {
                 middle = Math.max(middle, clockWidth / scale / zoom + 2 * CLOCK_PADDING);
             }
             width = (middle + 2 * (view?.sideWidth(notchHeight) ?? 0)) * zoom;
-            height = notchHeight;
+            height = notchHeight + (view?.extraHeight() ?? 0);
             radii = RADII.closed;
             if (this.hover && !view) {
                 width += HOVER_GROWTH.width * zoom;
@@ -611,10 +846,10 @@ class Island extends St.Widget {
             this._showClosedView(view);
             this._showClock(showClock);
 
-            // Only the current view takes the new width; one fading out
+            // Only the current view takes the new size; one fading out
             // keeps the width it had.
             if (view)
-                this._place(view, width * scale, notchHeight * scale);
+                this._place(view, width * scale, height * scale);
             if (this.get_stage()) {
                 const [, clockWidth] = this._clockBox.get_preferred_width(-1);
                 this._place(this._clockBox, clockWidth, notchHeight * scale);

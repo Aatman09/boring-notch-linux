@@ -6,13 +6,16 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Urgency} from 'resource:///org/gnome/shell/ui/messageTray.js';
 
 import {ArtCache} from './src/art.js';
-import {AudioLevels, VISUALIZER_APP_ID} from './src/audio.js';
+import {AudioLevels, IGNORED_RECORDING_APPS} from './src/audio.js';
 import {BatteryMonitor} from './src/battery.js';
+import {BluetoothMonitor} from './src/bluetooth.js';
 import {DownloadWatcher} from './src/downloads.js';
 import {Island} from './src/island.js';
+import {KeyboardMonitor} from './src/keyboard.js';
 import {MediaManager} from './src/media.js';
 import {ScaledStylesheet} from './src/style.js';
 import {Timer} from './src/timer.js';
+import {PrivacyMonitor} from './src/privacy.js';
 import {Zoom} from './src/zoom.js';
 
 /**
@@ -81,6 +84,9 @@ export default class BoringNotchExtension extends Extension {
         this._downloads = new DownloadWatcher();
         this._artCache = new ArtCache();
         this._audio = new AudioLevels();
+        this._privacy = new PrivacyMonitor();
+        this._bluetooth = new BluetoothMonitor();
+        this._keyboard = new KeyboardMonitor();
 
         this._island = new Island({
             settings: this._settings,
@@ -90,6 +96,9 @@ export default class BoringNotchExtension extends Extension {
             timer: this._timer,
             downloads: this._downloads,
             audio: this._audio,
+            privacy: this._privacy,
+            bluetooth: this._bluetooth,
+            keyboard: this._keyboard,
             artCache: this._artCache,
             openPreferences: () => this.openPreferences(),
         });
@@ -152,14 +161,9 @@ export default class BoringNotchExtension extends Extension {
         if (input) {
             this._injections.overrideMethod(input, '_maybeShowInput', () =>
                 function () {
-                    const skippedApps = [
-                        'org.gnome.VolumeControl',
-                        'org.PulseAudio.pavucontrol',
-                        VISUALIZER_APP_ID,
-                    ];
                     this._showInput = !!this._stream &&
                         this._control.get_source_outputs().some(
-                            output => !skippedApps.includes(output.get_application_id()));
+                            output => !IGNORED_RECORDING_APPS.includes(output.get_application_id()));
                     this._sync();
                 });
             input._maybeShowInput();
@@ -191,6 +195,12 @@ export default class BoringNotchExtension extends Extension {
         this._island.destroy();
         this._island = null;
 
+        this._privacy.destroy();
+        this._privacy = null;
+        this._bluetooth.destroy();
+        this._bluetooth = null;
+        this._keyboard.destroy();
+        this._keyboard = null;
         this._audio.destroy();
         this._audio = null;
         this._artCache.destroy();

@@ -2,6 +2,30 @@
 <schemalist>
   <schema id="org.gnome.shell.extensions.boring-notch-linux"
           path="/org/gnome/shell/extensions/boring-notch-linux/">
+    <key name="show-privacy-indicators" type="b">
+      <default>true</default>
+      <summary>Coloured dots beside the clock and a peek when an app uses the microphone, camera or screen sharing</summary>
+    </key>
+    <key name="screenshot-peek" type="b">
+      <default>true</default>
+      <summary>Show a thumbnail when a screenshot is taken</summary>
+    </key>
+    <key name="show-bluetooth" type="b">
+      <default>true</default>
+      <summary>Peek when a Bluetooth device connects or disconnects, with its battery level when known</summary>
+    </key>
+    <key name="show-dnd" type="b">
+      <default>true</default>
+      <summary>Show a moon beside the clock and a peek while Do Not Disturb is on</summary>
+    </key>
+    <key name="show-battery-warnings" type="b">
+      <default>true</default>
+      <summary>Warn when the battery is low or critical, and peek when it finishes charging</summary>
+    </key>
+    <key name="show-keyboard" type="b">
+      <default>true</default>
+      <summary>Peek when Caps Lock changes or the keyboard layout is switched</summary>
+    </key>
     <key name="open-on-hover" type="b">
       <default>true</default>
       <summary>Open the notch when the pointer rests on it</summary>

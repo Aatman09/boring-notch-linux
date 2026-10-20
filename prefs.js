@@ -177,7 +177,23 @@ function peeksPage(settings) {
         'Show browser downloads while they run and when they finish'));
     group.add(switchRow(settings, 'show-battery-activity', 'Battery',
         'Peek out when a charger is plugged in or removed'));
+
+    const awareness = new Adw.PreferencesGroup({title: 'System awareness'});
+    awareness.add(switchRow(settings, 'show-privacy-indicators',
+        'Microphone, camera and screen sharing',
+        'Dots beside the clock and a peek naming the app. It reads which apps use the microphone and camera but never records anything.'));
+    awareness.add(switchRow(settings, 'screenshot-peek', 'Screenshots',
+        'Show the screenshot instead of the notification text for a moment; click it to open the file'));
+    awareness.add(switchRow(settings, 'show-bluetooth', 'Bluetooth devices',
+        'Peek when a device connects or disconnects, with its battery level when known'));
+    awareness.add(switchRow(settings, 'show-dnd', 'Do Not Disturb',
+        'Show a moon beside the clock while Do Not Disturb is on, and a peek when it changes. The switch in the header of the open notch always works.'));
+    awareness.add(switchRow(settings, 'show-battery-warnings', 'Low and full battery',
+        'Warn when the battery runs low or critical, and when it finishes charging'));
+    awareness.add(switchRow(settings, 'show-keyboard', 'Caps Lock and keyboard layout',
+        'Peek when Caps Lock turns on or off, or when you switch to another keyboard layout'));
     page.add(group);
+    page.add(awareness);
     return page;
 }
 

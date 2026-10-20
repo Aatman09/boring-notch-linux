@@ -1,4 +1,5 @@
 import Clutter from 'gi://Clutter';
+import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import St from 'gi://St';
@@ -47,7 +48,7 @@ function iconButton(iconName, styleClass, callback) {
 const Header = GObject.registerClass({
     Signals: {'tab-selected': {param_types: [GObject.TYPE_STRING]}},
 }, class Header extends St.BoxLayout {
-    _init(battery, openPreferences) {
+    _init(battery, dndSettings, openPreferences) {
         super._init({style_class: 'bn-header', x_expand: true});
         this._battery = battery;
 
@@ -75,6 +76,19 @@ const Header = GObject.registerClass({
         this._hud.add_child(this._hudIcon);
         this._hud.add_child(this._hudBar);
         this.add_child(this._hud);
+
+        // Do Not Disturb is show-banners with banners stopped, bound the
+        // same inverted way as GNOME's quick settings toggle, so changes
+        // made anywhere update the button.
+        this._dnd = new St.Button({
+            style_class: 'bn-button bn-header-button bn-toggle',
+            child: new St.Icon({icon_name: 'notifications-disabled-symbolic'}),
+            can_focus: true,
+            toggle_mode: true,
+        });
+        dndSettings.bind('show-banners', this._dnd, 'checked',
+            Gio.SettingsBindFlags.INVERT_BOOLEAN);
+        this.add_child(this._dnd);
 
         this._gear = iconButton('emblem-system-symbolic', 'bn-header-button', openPreferences);
         this.add_child(this._gear);
@@ -500,10 +514,10 @@ const PARKED_Y = -10000;
 export const OpenView = GObject.registerClass({
     Signals: {'tab-selected': {param_types: [GObject.TYPE_STRING]}},
 }, class OpenView extends St.Widget {
-    _init({settings, battery, timer, openPreferences}) {
+    _init({settings, battery, timer, dndSettings, openPreferences}) {
         super._init({style_class: 'bn-open', opacity: 0});
 
-        this._header = new Header(battery, openPreferences);
+        this._header = new Header(battery, dndSettings, openPreferences);
         this._header.connect('tab-selected', (_h, id) => this.emit('tab-selected', id));
         this.add_child(this._header);
 
