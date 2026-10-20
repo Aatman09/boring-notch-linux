@@ -90,9 +90,37 @@ of the indicator. Any other app that records still turns the indicator on.
 You can switch it off with **Follow the music** in the settings; the bars
 then move on their own and nothing is captured.
 
-## Install
+## Requirements
 
-Requires GNOME Shell 50.
+It is a GNOME Shell extension, so it needs the GNOME desktop; it does nothing on
+KDE, Xfce and the like. It declares support for **GNOME Shell 50 only**
+(`shell-version` in `metadata.json`), and GNOME 50 runs on Wayland only. On any other
+GNOME version the Extensions app lists it as incompatible and will not enable it.
+
+Where that leaves some distributions, as of 21 October 2026:
+
+| Distribution | GNOME Shell | Status |
+|---|---|---|
+| Ubuntu 26.04 LTS | 50 | Developed and tested here |
+| Fedora 44 | 50 | Should work, not tested |
+| Debian testing (forky) | 50.5 | Should work, not tested |
+| Debian 13 stable (trixie) | 48 | Will not enable |
+| Debian unstable (sid) | 51 | Will not enable until it is updated and tested for 51 |
+
+GNOME 51 is out. Its extension porting notes do not touch what this extension uses
+(`metadata.json` and `prefs.js` are unchanged, `disable()` is synchronous, and it does
+not use the renamed `St.ButtonMask` constants), but it has not been run on 51, so `51`
+is not in `shell-version` yet.
+
+Everything the extension imports comes with `gnome-shell` itself (Bluetooth, GNOME
+Desktop and Soup 3 typelibs are its dependencies), apart from two optional parts:
+
+- **The music visualizer** follows the audio through `gst-launch-1.0` (package
+  `gstreamer1.0-tools`) and GStreamer's `spectrum` and `pulsesrc` elements (package
+  `gstreamer1.0-plugins-good`). Without them the bars still move, just on their own.
+- **Clicking the privacy peek** opens `gnome-control-center`.
+
+## Install
 
 ```sh
 make install
