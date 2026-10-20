@@ -285,7 +285,8 @@ class MediaPlayer extends St.BoxLayout {
         this._playing = playing;
         this._glow.visible = playing && this._settings.get_boolean('art-glow');
         this._art.ease({
-            scale: playing ? 1.0 : 0.85,
+            scale_x: playing ? 1.0 : 0.85,
+            scale_y: playing ? 1.0 : 0.85,
             opacity: playing ? 255 : 153,
             duration: PAUSED_EASE_MS,
             mode: Clutter.AnimationMode.EASE_OUT_QUAD,
