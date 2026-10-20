@@ -172,6 +172,50 @@ class BatterySneakView extends ClosedView {
     }
 });
 
+/** The thumbnail of a screenshot that was just taken, shown as a peek. */
+export const ScreenshotPeekView = GObject.registerClass(
+class ScreenshotPeekView extends ClosedView {
+    _init() {
+        super._init('bn-screenshot-peek');
+        // GNOME hands the screenshot over as an St.ImageContent, which
+        // always shows whole, whatever its size.
+        this._thumbnail = new St.Widget({
+            style_class: 'bn-screenshot-thumbnail',
+            content_gravity: Clutter.ContentGravity.RESIZE_ASPECT,
+        });
+        this.left.add_child(this._thumbnail);
+        this._caption = new St.Label({
+            style_class: 'bn-screenshot-caption',
+            text: 'Screenshot',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        this.right.add_child(this._caption);
+    }
+
+    sideWidth() {
+        return 120;
+    }
+
+    // Room for the thumbnail under the panel height.
+    extraHeight() {
+        return 90;
+    }
+
+    get showsClock() {
+        return false;
+    }
+
+    update(gicon) {
+        this._thumbnail.content = gicon;
+    }
+
+    // Dropping the content unloads the texture, so the screenshot does not
+    // stay in memory while something else is showing.
+    clear() {
+        this._thumbnail.content = null;
+    }
+});
+
 /**
  * An icon and some text. Live activities (timer, downloads) put the text on
  * the right, around the clock. Peeks (notifications, finished downloads) are

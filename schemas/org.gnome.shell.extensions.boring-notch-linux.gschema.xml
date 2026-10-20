@@ -6,6 +6,10 @@
       <default>true</default>
       <summary>Coloured dots beside the clock and a peek when an app uses the microphone, camera or screen sharing</summary>
     </key>
+    <key name="screenshot-peek" type="b">
+      <default>true</default>
+      <summary>Show a thumbnail when a screenshot is taken</summary>
+    </key>
     <key name="open-on-hover" type="b">
       <default>true</default>
       <summary>Open the notch when the pointer rests on it</summary>

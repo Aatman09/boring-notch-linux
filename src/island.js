@@ -10,7 +10,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {getMixerControl} from 'resource:///org/gnome/shell/ui/status/volume.js';
 
-import {BatterySneakView, IconTextView, InlineHudView, LiveMediaView, MusicPeekView} from './closedViews.js';
+import {BatterySneakView, IconTextView, InlineHudView, LiveMediaView, MusicPeekView, ScreenshotPeekView} from './closedViews.js';
 import {NotchShape} from './notchShape.js';
 import {OpenView} from './openView.js';
 import {Spring, SpringAnimator} from './spring.js';
@@ -46,6 +46,7 @@ const DOWNLOAD_TIMEOUT_MS = 4000;
 const TIMER_DONE_TIMEOUT_MS = 6000;
 const MUSIC_PEEK_TIMEOUT_MS = 3000;
 const PRIVACY_TIMEOUT_MS = 3000;
+const SCREENSHOT_TIMEOUT_MS = 4000;
 // A notch opened from the keyboard closes by itself unless the pointer
 // comes to it.
 const KEYBOARD_OPEN_MS = 4000;
@@ -147,9 +148,11 @@ class Island extends St.Widget {
         this._downloadLive = new IconTextView('bn-download-live', 52);
         this._messageSneak = new IconTextView('bn-message-sneak', 150, {peek: true});
         this._privacyPeek = new IconTextView('bn-privacy-peek', 145, {peek: true});
+        this._screenshotPeek = new ScreenshotPeekView();
         this._musicPeek = new MusicPeekView();
         [this._liveMedia, this._hud, this._batterySneak, this._timerLive,
-            this._downloadLive, this._messageSneak, this._privacyPeek, this._musicPeek]
+            this._downloadLive, this._messageSneak, this._privacyPeek,
+            this._screenshotPeek, this._musicPeek]
             .forEach(v => this._closedLayer.add_child(v));
         this._closedView = null;
 
@@ -347,6 +350,23 @@ class Island extends St.Widget {
     showNotification(notification) {
         if (this._state === State.OPEN || !this.visible)
             return false;
+
+        // GNOME posts one notification per screenshot and puts the image in
+        // gicon itself; recordings come with an ordinary icon. Match on the
+        // icon's type, never on the translated text.
+        if (this._settings.get_boolean('screenshot-peek') &&
+            notification.gicon instanceof St.ImageContent) {
+            this._showPeek({
+                view: this._screenshotPeek,
+                apply: () => this._screenshotPeek.update(notification.gicon),
+                timeout: SCREENSHOT_TIMEOUT_MS,
+                action: () => notification.activate(),
+                priority: Priority.NOTIFICATION,
+                key: 'screenshot',
+            });
+            return true;
+        }
+
         const content = {
             icon: notification.gicon ?? notification.source?.icon ?? null,
             iconName: 'preferences-system-notifications-symbolic',
@@ -494,6 +514,8 @@ class Island extends St.Widget {
     }
 
     _startPeek(peek) {
+        if (peek.view !== this._screenshotPeek)
+            this._releaseScreenshot();
         peek.apply?.();
         this._sneak = peek.view;
         this._sneakAction = peek.action;
@@ -511,6 +533,7 @@ class Island extends St.Widget {
             this._startPeek(this._peeks[0]);
             return;
         }
+        this._releaseScreenshot();
         this._sneak = null;
         this._sneakAction = null;
         // The timer view doubles as its own "done" peek; put it back.
@@ -521,9 +544,18 @@ class Island extends St.Widget {
     _clearPeeks() {
         this._clearTimeout('sneak');
         this._peeks = [];
+        this._releaseScreenshot();
         this._sneak = null;
         this._sneakAction = null;
         this._syncTimer();
+    }
+
+    // The screenshot peek holds the screenshot's texture while it shows;
+    // drop it otherwise, so it is not kept in memory for a peek that may
+    // not come again soon.
+    _releaseScreenshot() {
+        if (this._sneak === this._screenshotPeek)
+            this._screenshotPeek.clear();
     }
 
     _syncTimer() {
@@ -676,10 +708,10 @@ class Island extends St.Widget {
             this._showClosedView(view);
             this._showClock(showClock);
 
-            // Only the current view takes the new width; one fading out
+            // Only the current view takes the new size; one fading out
             // keeps the width it had.
             if (view)
-                this._place(view, width * scale, notchHeight * scale);
+                this._place(view, width * scale, height * scale);
             if (this.get_stage()) {
                 const [, clockWidth] = this._clockBox.get_preferred_width(-1);
                 this._place(this._clockBox, clockWidth, notchHeight * scale);

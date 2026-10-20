@@ -43,6 +43,8 @@ the pointer on it.
 - **Privacy:** small dots beside the clock when the microphone, camera or
   screen sharing is in use, and a peek naming the app. It only reads which
   apps are using them; nothing is recorded.
+- **Screenshots:** the screenshot itself, as a large thumbnail, instead of a
+  text notification. Click it to open the file.
 - **System peeks:** a moon beside the clock while Do Not Disturb is on, a
   screenshot thumbnail when you take one, a peek when a Bluetooth device
   connects or disconnects, and Caps Lock and keyboard layout changes.

@@ -182,6 +182,8 @@ function peeksPage(settings) {
     awareness.add(switchRow(settings, 'show-privacy-indicators',
         'Microphone, camera and screen sharing',
         'Dots beside the clock and a peek naming the app. It reads which apps use the microphone and camera but never records anything.'));
+    awareness.add(switchRow(settings, 'screenshot-peek', 'Screenshots',
+        'Show the screenshot instead of the notification text for a moment; click it to open the file'));
     page.add(group);
     page.add(awareness);
     return page;

@@ -156,6 +156,19 @@
   background-color: #0a84ff;
 }
 
+/* Screenshot peek: the thumbnail hangs under the top bar */
+.bn-screenshot-thumbnail {
+  width: 160px;
+  height: 84px;
+  border-radius: 6px;
+}
+
+.bn-screenshot-caption {
+  font-size: 12px;
+  color: #aeaeb2;
+  font-weight: 500;
+}
+
 .bn-header-battery {
   spacing: 4px;
   font-size: 12px;
