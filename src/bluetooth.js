@@ -67,10 +67,6 @@ export class BluetoothMonitor extends EventEmitter {
             GLib.source_remove(entry.debounceId);
         entry.debounceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, DEBOUNCE_MS, () => {
             entry.debounceId = 0;
-            if (this._devices.get(entry.device.get_object_path()) !== entry) {
-                this._forget(entry);
-                return GLib.SOURCE_REMOVE;
-            }
             const connected = entry.device.connected;
             if (connected === entry.connected)
                 return GLib.SOURCE_REMOVE;
