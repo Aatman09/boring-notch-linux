@@ -9,12 +9,14 @@ export const AlbumArt = GObject.registerClass(
 class AlbumArt extends St.Bin {
     _init(styleClass) {
         // The cover keeps its size from the stylesheet: expanding would let
-        // it take spare width from the row around it.
+        // it take spare width from the row around it. Scaling runs about
+        // the centre, for the paused state of the open player.
         super._init({
             style_class: styleClass,
             x_expand: false,
             y_expand: false,
             y_align: Clutter.ActorAlign.CENTER,
+            pivot_point: new Graphene.Point({x: 0.5, y: 0.5}),
         });
         this._placeholder = new St.Icon({
             icon_name: 'folder-music-symbolic',

@@ -29,7 +29,9 @@ the pointer on it.
   use the GNOME banner.
 - **Music:** album art and four bars in the closed notch while something
   plays. The bars follow the bass, mids and treble of what's playing, and both
-  bars and player take their tint from the album cover. The Home tab has the full player with seek bar, shuffle, previous,
+  bars and player take their tint from the album cover. A blurred copy of the
+  cover glows behind the big cover while the track plays. The Home tab has the
+  full player with seek bar, shuffle, previous,
   play/pause, next and repeat. This works with any MPRIS player (Spotify,
   Firefox, Chromium, Rhythmbox, VLC and most others).
 - **Timer:** the Timer tab has 1–25 minute presets. While it runs, the

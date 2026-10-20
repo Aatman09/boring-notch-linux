@@ -95,6 +95,10 @@
       <default>true</default>
       <summary>Take the colour of the bars, the player text and the seek bar from the album art</summary>
     </key>
+    <key name="art-glow" type="b">
+      <default>true</default>
+      <summary>Glow behind the album cover while the track plays</summary>
+    </key>
     <key name="gestures" type="b">
       <default>true</default>
       <summary>Gestures on the notch: swipe down to open, up to close, sideways to change track</summary>

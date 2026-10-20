@@ -132,6 +132,8 @@ function musicPage(settings) {
     closed.add(follow);
     closed.add(switchRow(settings, 'art-colors', 'Colours from the album art',
         'Tint the bars and, in the notch, the artist text and the seek bar with the cover\'s average colour'));
+    closed.add(switchRow(settings, 'art-glow', 'Glow behind the cover',
+        'A blurred copy of the cover shines behind it while the track plays'));
     closed.add(spinRow(settings, 'media-linger-seconds', 'Keep showing after pause',
         'Seconds the music stays in the closed notch after pausing', [0, 10, 1]));
     page.add(closed);

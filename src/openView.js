@@ -2,6 +2,8 @@ import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
+import Graphene from 'gi://Graphene';
+import Shell from 'gi://Shell';
 import St from 'gi://St';
 
 import * as BarLevel from 'resource:///org/gnome/shell/ui/barLevel.js';
@@ -15,6 +17,7 @@ const formatSeconds = s => formatTime(s * GLib.USEC_PER_SEC);
 const TICK_MS = 500;
 const HEADER_HUD_MS = 1500;
 const SKIP_SECONDS = 15;
+const PAUSED_EASE_MS = 200;
 
 // The buttons the player row can show, in the order of the setting.
 const PLAYER_BUTTONS = {
@@ -160,13 +163,32 @@ class MediaPlayer extends St.BoxLayout {
     _init(settings) {
         super._init({style_class: 'bn-player', x_expand: true, y_expand: true});
 
+        // The cover, with a blurred enlarged copy glowing behind it while
+        // the track plays; paused, the cover itself shrinks and dims.
+        this._artBox = new St.Widget({
+            layout_manager: new Clutter.BinLayout(),
+            y_align: Clutter.ActorAlign.CENTER,
+            reactive: true,
+        });
+        // A blurred, enlarged copy of the cover glows around the cover;
+        // it is faint and bigger than the cover, about its centre.
+        this._glow = new St.Widget({
+            style_class: 'bn-art-glow',
+            visible: false,
+            opacity: 128,
+            pivot_point: new Graphene.Point({x: 0.5, y: 0.5}),
+            scale_x: 1.3,
+            scale_y: 1.4,
+        });
+        this._glow.add_effect(new Shell.BlurEffect({radius: 40, mode: Shell.BlurMode.ACTOR}));
         this._art = new AlbumArt('bn-art');
-        this._art.reactive = true;
-        this._art.connect('button-press-event', () => {
+        this._artBox.add_child(this._glow);
+        this._artBox.add_child(this._art);
+        this._artBox.connect('button-press-event', () => {
             this._player?.raise();
             return Clutter.EVENT_STOP;
         });
-        this.add_child(this._art);
+        this.add_child(this._artBox);
 
         const column = new St.BoxLayout({
             orientation: Clutter.Orientation.VERTICAL,
@@ -213,7 +235,14 @@ class MediaPlayer extends St.BoxLayout {
         column.add_child(this._controls);
         this._settings = settings;
         this._buttons = {};
-        settings.connectObject('changed::player-buttons', () => this._buildControls(), this);
+        this._playing = null;
+        settings.connectObject(
+            'changed::player-buttons', () => this._buildControls(),
+            'changed::art-glow', () => {
+                this._playing = null;
+                this._syncPlaying(this._player?.playing ?? false);
+            },
+            this);
         this._buildControls();
 
         this.dragging = false;
@@ -239,11 +268,28 @@ class MediaPlayer extends St.BoxLayout {
     update(player, artUri) {
         this._player = player;
         this._art.set_art(artUri);
+        this._glow.style = artUri ? `background-image: url("${artUri}");` : null;
         this._title.text = player.title;
         this._artist.text = player.artists || player.identity;
         this._slider.reactive = player.canSeek;
         this._syncButtons(player);
+        this._syncPlaying(player.playing);
         this.tick();
+    }
+
+    // The glow shows while the track plays; paused, the cover eases to a
+    // smaller, dimmed copy. Both animate only here, on a state change.
+    _syncPlaying(playing) {
+        if (playing === this._playing)
+            return;
+        this._playing = playing;
+        this._glow.visible = playing && this._settings.get_boolean('art-glow');
+        this._art.ease({
+            scale: playing ? 1.0 : 0.85,
+            opacity: playing ? 255 : 153,
+            duration: PAUSED_EASE_MS,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+        });
     }
 
     _syncButtons(player) {
