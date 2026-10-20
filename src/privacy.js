@@ -52,8 +52,11 @@ export class PrivacyMonitor extends EventEmitter {
         const micApps = this._readMicApps();
         if (this._sameSet(micApps, this._micApps))
             return;
+        // Only the first app to start recording gets a peek; others joining
+        // or leaving just change the dot.
+        const started = this._micApps.length === 0 && micApps.length > 0;
         this._micApps = micApps;
-        if (micApps.length > 0)
+        if (started)
             this._emitStarted('mic', micApps[0]);
         this.emit('changed', {
             mic: micApps, camera: this._camera, sharing: this.sharing,
