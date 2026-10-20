@@ -33,7 +33,7 @@
 
 .bn-art-small-placeholder {
   icon-size: 12px;
-  color: #8e8e93;
+  color: #aeaeb2;
 }
 
 .bn-visualizer {
@@ -45,7 +45,7 @@
   width: 3px;
   height: 14px;
   border-radius: 2px;
-  background-color: #d1d1d6;
+  background-color: #ebebf0;
 }
 
 .bn-hud-icon,
@@ -67,7 +67,8 @@
 .bn-hud-label {
   font-size: 12px;
   font-feature-settings: "tnum";
-  color: #d1d1d6;
+  color: #ebebf0;
+  font-weight: 500;
 }
 
 .bn-hud-value {
@@ -77,7 +78,8 @@
 
 .bn-battery-status {
   font-size: 12px;
-  color: #d1d1d6;
+  color: #ebebf0;
+  font-weight: 500;
 }
 
 .bn-battery-status.bn-charging {
@@ -87,6 +89,7 @@
 .bn-battery-percent {
   font-size: 12px;
   font-feature-settings: "tnum";
+  font-weight: 500;
 }
 
 /* Open notch */
@@ -100,8 +103,9 @@
   margin: 4px 0;
   border-radius: 99px;
   font-size: 12px;
-  color: #8e8e93;
+  color: #aeaeb2;
   transition-duration: 150ms;
+  font-weight: 500;
 }
 
 .bn-tab:hover {
@@ -133,7 +137,8 @@
   spacing: 4px;
   font-size: 12px;
   font-feature-settings: "tnum";
-  color: #d1d1d6;
+  color: #ebebf0;
+  font-weight: 500;
 }
 
 .bn-header-battery-icon {
@@ -165,7 +170,7 @@
 
 .bn-header-button {
   padding: 4px;
-  color: #8e8e93;
+  color: #aeaeb2;
 }
 
 .bn-header-button StIcon {
@@ -173,7 +178,7 @@
 }
 
 .bn-toggle {
-  color: #8e8e93;
+  color: #aeaeb2;
 }
 
 .bn-toggle:checked {
@@ -199,7 +204,7 @@
 
 .bn-art-placeholder {
   icon-size: 36px;
-  color: #8e8e93;
+  color: #aeaeb2;
 }
 
 .bn-player-column {
@@ -213,8 +218,9 @@
 
 .bn-artist {
   font-size: 13px;
-  color: #8e8e93;
+  color: #aeaeb2;
   margin-bottom: 6px;
+  font-weight: 500;
 }
 
 .bn-progress {
@@ -230,9 +236,10 @@
 }
 
 .bn-times {
-  font-size: 11px;
+  font-size: 12px;
   font-feature-settings: "tnum";
-  color: #8e8e93;
+  color: #aeaeb2;
+  font-weight: 500;
 }
 
 .bn-controls {
@@ -251,13 +258,15 @@
 
 .bn-idle-date {
   font-size: 13px;
-  color: #d1d1d6;
+  color: #ebebf0;
+  font-weight: 500;
 }
 
 .bn-idle-hint {
   margin-top: 8px;
-  font-size: 11px;
-  color: #8e8e93;
+  font-size: 12px;
+  color: #aeaeb2;
+  font-weight: 500;
 }
 
 /* Clock inside the closed notch */
@@ -290,7 +299,8 @@
 
 .bn-icon-text-body {
   font-size: 12px;
-  color: #8e8e93;
+  color: #aeaeb2;
+  font-weight: 500;
 }
 
 .bn-message-sneak .bn-closed-left {
@@ -348,7 +358,7 @@
 }
 
 #boring-notch .message-list-placeholder {
-  color: #8e8e93;
+  color: #aeaeb2;
 }
 
 #boring-notch .message-list-clear-button {
@@ -398,7 +408,7 @@
   margin-top: 6px;
   font-size: 13px;
   font-weight: 600;
-  color: #d1d1d6;
+  color: #ebebf0;
 }
 
 .bn-events {
@@ -408,17 +418,19 @@
 .bn-event {
   spacing: 10px;
   font-size: 13px;
+  font-weight: 500;
 }
 
 .bn-event-time {
   min-width: 44px;
-  color: #8e8e93;
+  color: #aeaeb2;
   font-feature-settings: "tnum";
 }
 
 .bn-event-empty {
   font-size: 13px;
-  color: #8e8e93;
+  color: #aeaeb2;
+  font-weight: 500;
 }
 
 /* Timer tab */
@@ -441,8 +453,9 @@
   padding: 3px 10px;
   border-radius: 99px;
   font-size: 12px;
-  color: #d1d1d6;
+  color: #ebebf0;
   background-color: rgba(255, 255, 255, 0.08);
+  font-weight: 500;
 }
 
 .bn-chip:hover {

@@ -5,13 +5,23 @@ import St from 'gi://St';
 const decoder = new TextDecoder();
 const encoder = new TextEncoder();
 
+// Symbolic icons are drawn on a 16px grid, so they are only sharp at sizes
+// that keep to it.
+const ICON_SIZES = [12, 16, 24, 32, 48, 64];
+
+function iconSize(px) {
+    return ICON_SIZES.reduce((best, size) =>
+        Math.abs(size - px) < Math.abs(best - px) ? size : best);
+}
+
 /**
  * Loads src/style.css with every pixel length multiplied by the zoom. St
  * has no zoom of its own, so the scaled sheet is written to a cache file
  * and loaded in place of the original.
  *
- * Lengths are rounded to whole pixels: icons in particular render badly at
- * fractional sizes. Font sizes keep one decimal.
+ * Everything lands on whole pixels, whatever the zoom: fonts at fractional
+ * sizes get uneven letter spacing, and icons are snapped to the sizes they
+ * are drawn for.
  */
 export class ScaledStylesheet {
     constructor(template, zoom) {
@@ -34,8 +44,8 @@ export class ScaledStylesheet {
         const css = this._template.replace(/([\w-]+)(\s*:\s*)([^;{}]*)/g, (decl, property, colon, value) => {
             const scaled = value.replace(/(\d*\.?\d+)px/g, (_m, number) => {
                 const px = parseFloat(number) * zoom;
-                if (property === 'font-size')
-                    return `${+px.toFixed(1)}px`;
+                if (property === 'icon-size')
+                    return `${iconSize(px)}px`;
                 return `${px > 0 ? Math.max(1, Math.round(px)) : 0}px`;
             });
             return `${property}${colon}${scaled}`;
