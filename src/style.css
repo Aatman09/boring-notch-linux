@@ -191,6 +191,10 @@
   color: #ff9f0a;
 }
 
+.bn-keyboard-peek .bn-icon-text-title {
+  max-width: 120px;
+}
+
 .bn-header-battery {
   spacing: 4px;
   font-size: 12px;

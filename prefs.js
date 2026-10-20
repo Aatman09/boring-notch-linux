@@ -190,6 +190,8 @@ function peeksPage(settings) {
         'Show a moon beside the clock while Do Not Disturb is on, and a peek when it changes. The switch in the header of the open notch always works.'));
     awareness.add(switchRow(settings, 'show-battery-warnings', 'Low and full battery',
         'Warn when the battery runs low or critical, and when it finishes charging'));
+    awareness.add(switchRow(settings, 'show-keyboard', 'Caps Lock and keyboard layout',
+        'Peek when Caps Lock turns on or off, or when you switch to another keyboard layout'));
     page.add(group);
     page.add(awareness);
     return page;

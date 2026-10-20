@@ -53,6 +53,7 @@ const MUSIC_PEEK_TIMEOUT_MS = 3000;
 const PRIVACY_TIMEOUT_MS = 3000;
 const SCREENSHOT_TIMEOUT_MS = 4000;
 const DND_TIMEOUT_MS = 2500;
+const KEYBOARD_TIMEOUT_MS = 1200;
 // A notch opened from the keyboard closes by itself unless the pointer
 // comes to it.
 const KEYBOARD_OPEN_MS = 4000;
@@ -79,7 +80,7 @@ const VOLUME_STEP = 0.05;
 
 export const Island = GObject.registerClass(
 class Island extends St.Widget {
-    _init({settings, zoom, media, battery, timer, downloads, audio, privacy, bluetooth, artCache, openPreferences}) {
+    _init({settings, zoom, media, battery, timer, downloads, audio, privacy, bluetooth, keyboard, artCache, openPreferences}) {
         super._init({
             name: 'boring-notch',
             reactive: true,
@@ -95,6 +96,7 @@ class Island extends St.Widget {
         this._downloads = downloads;
         this._privacy = privacy;
         this._bluetooth = bluetooth;
+        this._keyboard = keyboard;
         this._artCache = artCache;
         this._state = State.CLOSED;
         this._tab = 'home';
@@ -168,10 +170,12 @@ class Island extends St.Widget {
         this._screenshotPeek = new ScreenshotPeekView();
         this._bluetoothPeek = new IconTextView('bn-bluetooth-peek', 130, {peek: true});
         this._dndPeek = new IconTextView('bn-dnd-peek', 110, {peek: true});
+        this._keyboardPeek = new IconTextView('bn-keyboard-peek', 105, {peek: true});
         this._musicPeek = new MusicPeekView();
         [this._liveMedia, this._hud, this._batterySneak, this._timerLive,
             this._downloadLive, this._messageSneak, this._privacyPeek,
-            this._screenshotPeek, this._bluetoothPeek, this._dndPeek, this._musicPeek]
+            this._screenshotPeek, this._bluetoothPeek, this._dndPeek,
+            this._keyboardPeek, this._musicPeek]
             .forEach(v => this._closedLayer.add_child(v));
         this._closedView = null;
 
@@ -232,6 +236,10 @@ class Island extends St.Widget {
         bluetooth.connectObject(
             'connected', (_b, device) => this._onBluetooth(device, true),
             'disconnected', (_b, device) => this._onBluetooth(device, false),
+            this);
+        keyboard.connectObject(
+            'caps-lock', (_k, on) => this._onCapsLock(on),
+            'layout', (_k, source) => this._onLayoutChanged(source),
             this);
         timer.connectObject(
             'changed', () => this._syncTimer(),
@@ -555,6 +563,31 @@ class Island extends St.Widget {
             });
         }
         this._syncMoon();
+    }
+
+    // Caps Lock and layout changes share one peek, so pressing both in
+    // short order updates it instead of queueing two.
+    _onCapsLock(on) {
+        this._showKeyboard(on ? 'Caps Lock on' : 'Caps Lock off');
+    }
+
+    _onLayoutChanged(source) {
+        this._showKeyboard(source.shortName, source.displayName);
+    }
+
+    _showKeyboard(title, body = '') {
+        if (!this._settings.get_boolean('show-keyboard') || this._state === State.OPEN)
+            return;
+        this._showPeek({
+            view: this._keyboardPeek,
+            apply: () => this._keyboardPeek.update({
+                iconName: 'input-keyboard-symbolic',
+                title, body,
+            }),
+            timeout: KEYBOARD_TIMEOUT_MS,
+            priority: Priority.STATUS,
+            key: 'keyboard',
+        });
     }
 
     _onTimerFinished() {

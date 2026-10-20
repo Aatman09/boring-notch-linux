@@ -49,6 +49,8 @@ the pointer on it.
   battery level when the device reports one.
 - **Do Not Disturb:** a moon beside the clock while it is on, a peek when it
   changes, and a switch in the notch's header.
+- **Keyboard:** a peek when Caps Lock turns on or off, and when the layout
+  changes, to the short name such as EN.
 - **System peeks:** a moon beside the clock while Do Not Disturb is on, a
   screenshot thumbnail when you take one, a peek when a Bluetooth device
   connects or disconnects, and Caps Lock and keyboard layout changes.

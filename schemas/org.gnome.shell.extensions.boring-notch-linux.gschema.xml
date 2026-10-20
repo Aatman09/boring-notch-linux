@@ -22,6 +22,10 @@
       <default>true</default>
       <summary>Warn when the battery is low or critical, and peek when it finishes charging</summary>
     </key>
+    <key name="show-keyboard" type="b">
+      <default>true</default>
+      <summary>Peek when Caps Lock changes or the keyboard layout is switched</summary>
+    </key>
     <key name="open-on-hover" type="b">
       <default>true</default>
       <summary>Open the notch when the pointer rests on it</summary>
