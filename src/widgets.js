@@ -8,12 +8,19 @@ import St from 'gi://St';
 export const AlbumArt = GObject.registerClass(
 class AlbumArt extends St.Bin {
     _init(styleClass) {
-        super._init({style_class: styleClass, y_align: Clutter.ActorAlign.CENTER});
+        // The cover keeps its size from the stylesheet: expanding would let
+        // it take spare width from the row around it.
+        super._init({
+            style_class: styleClass,
+            x_expand: false,
+            y_expand: false,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
         this._placeholder = new St.Icon({
             icon_name: 'folder-music-symbolic',
             style_class: `${styleClass}-placeholder`,
-            x_expand: true,
-            y_expand: true,
+            x_align: Clutter.ActorAlign.CENTER,
+            y_align: Clutter.ActorAlign.CENTER,
         });
         this.set_art(null);
         this.connect('destroy', () => {
