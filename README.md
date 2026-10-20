@@ -7,12 +7,23 @@ GNOME Shell extension because the original is built on macOS-only frameworks.
 The notch sits in the middle of the top bar and springs open when you rest
 the pointer on it.
 
+![Boring Notch opening on the player, then the Today and Timer tabs, a volume change and a notification](docs/demo.gif)
+
+[Watch the demo in full quality (MP4, 60 fps)](docs/demo.mp4)
+
+| Closed, music playing | Home |
+|---|---|
+| ![Closed notch with album art, clock and visualizer](docs/closed.png) | ![Open notch with the media player](docs/home.png) |
+
+![Today tab with notifications on the left and the month calendar on the right](docs/today.png)
+
 ## Features
 
 - **Clock and notifications:** the top bar clock moves into the notch, with a
   dot when notifications are waiting. Clicking the notch or pressing Super+V
   opens the **Today** tab: GNOME's own notification list on the left, and the
-  month calendar with the selected day's events on the right.
+  month calendar on the right with the selected day's events, which scroll
+  when a day is busy.
 - **Notification peeks:** new notifications slide out of the notch instead of
   showing GNOME banners. Click one to open it. Critical notifications still
   use the GNOME banner.
