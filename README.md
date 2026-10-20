@@ -53,6 +53,8 @@ the pointer on it.
   changes, to the short name such as EN.
 - **Screen recording:** a red dot and the elapsed time while GNOME's screen
   recorder runs; clicking the notch stops it.
+- **Sound output:** a peek saying Headphones, Speakers or whatever the active
+  output now is, when it changes.
 - **Settings:** size, hover to open, hover delay, notch width, clock
   placement, and each live activity can be turned off.
 

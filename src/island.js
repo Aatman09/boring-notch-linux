@@ -16,7 +16,6 @@ import {OpenView} from './openView.js';
 import {RecordingMonitor} from './recording.js';
 import {Spring, SpringAnimator} from './spring.js';
 import {formatTime} from './widgets.js';
-
 const formatSeconds = s => formatTime(s * GLib.USEC_PER_SEC);
 
 // Sizes and springs from boring.notch (sizing/matters.swift and
@@ -57,6 +56,7 @@ const DND_TIMEOUT_MS = 2500;
 const KEYBOARD_TIMEOUT_MS = 1200;
 // The GNOME screen recorder is read through Main.screenshotUI (B1).
 const RECORD_LIVE_SIDE = 52;
+const AUDIO_ROUTE_TIMEOUT_MS = 2500;
 // A notch opened from the keyboard closes by itself unless the pointer
 // comes to it.
 const KEYBOARD_OPEN_MS = 4000;
@@ -83,7 +83,7 @@ const VOLUME_STEP = 0.05;
 
 export const Island = GObject.registerClass(
 class Island extends St.Widget {
-    _init({settings, zoom, media, battery, timer, downloads, audio, privacy, bluetooth, keyboard, recording, artCache, openPreferences}) {
+    _init({settings, zoom, media, battery, timer, downloads, audio, privacy, bluetooth, keyboard, recording, audioRoute, artCache, openPreferences}) {
         super._init({
             name: 'boring-notch',
             reactive: true,
@@ -101,6 +101,7 @@ class Island extends St.Widget {
         this._bluetooth = bluetooth;
         this._keyboard = keyboard;
         this._recording = recording;
+        this._audioRoute = audioRoute;
         this._artCache = artCache;
         this._state = State.CLOSED;
         this._tab = 'home';
@@ -194,11 +195,13 @@ class Island extends St.Widget {
         this._bluetoothPeek = new IconTextView('bn-bluetooth-peek', 130, {peek: true});
         this._dndPeek = new IconTextView('bn-dnd-peek', 110, {peek: true});
         this._keyboardPeek = new IconTextView('bn-keyboard-peek', 105, {peek: true});
+        this._audioRoutePeek = new IconTextView('bn-audio-route', 110, {peek: true});
         this._musicPeek = new MusicPeekView();
         [this._recordLive, this._liveMedia, this._hud, this._batterySneak,
             this._timerLive, this._downloadLive, this._messageSneak,
             this._privacyPeek, this._screenshotPeek, this._bluetoothPeek,
-            this._dndPeek, this._keyboardPeek, this._musicPeek]
+            this._dndPeek, this._keyboardPeek, this._audioRoutePeek,
+            this._musicPeek]
             .forEach(v => this._closedLayer.add_child(v));
         this._closedView = null;
 
@@ -266,6 +269,8 @@ class Island extends St.Widget {
             'layout', (_k, source) => this._onLayoutChanged(source),
             this);
         recording.connectObject('changed', () => this._onRecordingChanged(), this);
+        audioRoute.connectObject('changed',
+            (_r, route) => this._onAudioRouteChanged(route), this);
         timer.connectObject(
             'changed', () => this._syncTimer(),
             'finished', () => this._onTimerFinished(),
@@ -635,6 +640,20 @@ class Island extends St.Widget {
         this._syncRecordLive();
         this._syncRecordTick();
         this._relayout();
+    }
+
+    // The output change shares nothing with the bluetooth or keyboard
+    // peeks; it gets its own turn.
+    _onAudioRouteChanged({name, iconName}) {
+        if (!this._settings.get_boolean('show-audio-route') || this._state === State.OPEN)
+            return;
+        this._showPeek({
+            view: this._audioRoutePeek,
+            apply: () => this._audioRoutePeek.update({iconName, title: name}),
+            timeout: AUDIO_ROUTE_TIMEOUT_MS,
+            priority: Priority.STATUS,
+            key: 'audio-route',
+        });
     }
 
     _onShowRecordingChanged() {

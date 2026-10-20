@@ -194,6 +194,8 @@ function peeksPage(settings) {
         'Peek when Caps Lock turns on or off, or when you switch to another keyboard layout'));
     awareness.add(switchRow(settings, 'show-recording', 'Screen recording',
         'Show a red dot and the elapsed time while GNOME screen records; a click on the notch stops the recording'));
+    awareness.add(switchRow(settings, 'show-audio-route', 'Sound output',
+        'Say Headphones or Speakers when the active sound output changes'));
     page.add(group);
     page.add(awareness);
     return page;

@@ -30,6 +30,10 @@
       <default>true</default>
       <summary>Show a red dot and the elapsed time while GNOME's screen recorder runs, with a click on the notch to stop it</summary>
     </key>
+    <key name="show-audio-route" type="b">
+      <default>true</default>
+      <summary>Say Headphones, Speakers and the like when the sound output changes</summary>
+    </key>
     <key name="open-on-hover" type="b">
       <default>true</default>
       <summary>Open the notch when the pointer rests on it</summary>
