@@ -13,9 +13,9 @@ import {DownloadWatcher} from './src/downloads.js';
 import {Island} from './src/island.js';
 import {KeyboardMonitor} from './src/keyboard.js';
 import {MediaManager} from './src/media.js';
+import {PrivacyMonitor} from './src/privacy.js';
 import {ScaledStylesheet} from './src/style.js';
 import {Timer} from './src/timer.js';
-import {PrivacyMonitor} from './src/privacy.js';
 import {Zoom} from './src/zoom.js';
 
 /**
