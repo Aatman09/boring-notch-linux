@@ -289,6 +289,11 @@ class TodayView extends St.BoxLayout {
             y_expand: true,
             child: this._events,
         });
+        // The calendar alone sets the column's width. Without this, long
+        // event titles widen the column and the calendar slides sideways;
+        // with it they are cut short with an ellipsis.
+        scroll.natural_width = 0;
+        this._eventsTitle.natural_width = 0;
         column.add_child(this._eventsTitle);
         column.add_child(scroll);
 
