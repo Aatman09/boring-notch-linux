@@ -395,7 +395,7 @@ class Island extends St.Widget {
         // battery notice; drop it while our battery-level peek is on or has
         // just ended, so low and full battery do not pop twice.
         if (notification.gicon instanceof Gio.ThemedIcon &&
-            notification.gicon.icon_name.startsWith('battery') &&
+            notification.gicon.names.some(name => name.startsWith('battery')) &&
             GLib.get_monotonic_time() < (this._batteryNoticeUntil ?? 0))
             return true;
 
