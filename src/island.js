@@ -126,7 +126,13 @@ class Island extends St.Widget {
 
         // The top bar clock, when it lives in the notch. It sits behind the
         // live activities, in the empty middle they leave.
-        this._clockBox = new St.BoxLayout({style_class: 'bn-clock-box'});
+        this._clockBox = new St.BoxLayout({
+            style_class: 'bn-clock-box',
+            x_expand: true,
+            y_expand: true,
+            x_align: Clutter.ActorAlign.CENTER,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
         this._clockLabel = new St.Label({style_class: 'bn-clock', y_align: Clutter.ActorAlign.CENTER});
         // Never shorten the time: the notch is sized to fit it.
         this._clockLabel.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
@@ -156,7 +162,12 @@ class Island extends St.Widget {
         this._clockBox.add_child(this._unreadDot);
         this._clockBox.add_child(this._privacyBox);
         this._clockBox.add_child(this._dndMoon);
-        this._closedLayer.add_child(this._clockBox);
+        // The slot is as wide as the notch and the layout centres the clock
+        // in it, so the clock stays centred whatever width its text or font
+        // gives it, without anything having to measure it first.
+        this._clockSlot = new St.Widget({layout_manager: new Clutter.BinLayout()});
+        this._clockSlot.add_child(this._clockBox);
+        this._closedLayer.add_child(this._clockSlot);
         this._wallClock = new GnomeDesktop.WallClock();
         this._wallClock.bind_property('clock', this._clockLabel, 'text', GObject.BindingFlags.SYNC_CREATE);
 
@@ -850,10 +861,10 @@ class Island extends St.Widget {
             // keeps the width it had.
             if (view)
                 this._place(view, width * scale, height * scale);
-            if (this.get_stage()) {
-                const [, clockWidth] = this._clockBox.get_preferred_width(-1);
-                this._place(this._clockBox, clockWidth, notchHeight * scale);
-            }
+            // Sizing needs the notch on the stage, which it only is once it
+            // has been added to the top chrome.
+            if (this.get_stage())
+                this._place(this._clockSlot, width * scale, notchHeight * scale);
         }
 
         // Every tab's page always has its size, even while parked, so it is
