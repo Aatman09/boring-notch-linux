@@ -13,9 +13,9 @@ import {getMixerControl} from 'resource:///org/gnome/shell/ui/status/volume.js';
 import {BatterySneakView, IconTextView, InlineHudView, LiveMediaView, MusicPeekView, ScreenshotPeekView} from './closedViews.js';
 import {NotchShape} from './notchShape.js';
 import {OpenView} from './openView.js';
-import {RecordingMonitor} from './recording.js';
 import {Spring, SpringAnimator} from './spring.js';
 import {formatTime} from './widgets.js';
+
 const formatSeconds = s => formatTime(s * GLib.USEC_PER_SEC);
 
 // Sizes and springs from boring.notch (sizing/matters.swift and
@@ -201,6 +201,13 @@ class Island extends St.Widget {
         this._dndPeek = new IconTextView('bn-dnd-peek', 110, {peek: true});
         this._keyboardPeek = new IconTextView('bn-keyboard-peek', 105, {peek: true});
         this._audioRoutePeek = new IconTextView('bn-audio-route', 110, {peek: true});
+        // One centred group: drop the empty halves the base layout keeps.
+        {
+            const [left, gap, right] = this._audioRoutePeek.get_children();
+            this._audioRoutePeek.remove_child(gap);
+            this._audioRoutePeek.remove_child(right);
+            left.x_align = Clutter.ActorAlign.CENTER;
+        }
         this._musicPeek = new MusicPeekView();
         [this._recordLive, this._liveMedia, this._hud, this._batterySneak,
             this._timerLive, this._downloadLive, this._messageSneak,
@@ -208,6 +215,9 @@ class Island extends St.Widget {
             this._dndPeek, this._keyboardPeek, this._audioRoutePeek,
             this._musicPeek]
             .forEach(v => this._closedLayer.add_child(v));
+        // The layer fading out when the notch opens takes the shown view
+        // with it; let that view go of what it holds once it is hidden.
+        this._closedLayer.onHidden = () => this._closedView?.onHidden();
         this._closedView = null;
 
         this._openView = new OpenView({
@@ -991,7 +1001,7 @@ class Island extends St.Widget {
 
             // Only the current view takes the new size; one fading out
             // keeps the width it had.
-            if (view)
+            if (view && this.get_stage())
                 this._place(view, width * scale, height * scale);
             // Sizing needs the notch on the stage, which it only is once it
             // has been added to the top chrome.

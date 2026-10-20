@@ -19,8 +19,8 @@ export class AudioRouteMonitor extends EventEmitter {
 
         const control = getMixerControl();
         this._device = null;
-        this._ready = control.get_state() === Gvc.MixerControlState.READY;
-        control.connectObject(
+        this._ready = control?.get_state() === Gvc.MixerControlState.READY;
+        control?.connectObject(
             'active-output-update', (_c, id) => this._onActiveOutput(control, id),
             'state-changed', () => this._onStateChanged(control),
             this);
