@@ -27,6 +27,9 @@ const PlayerIface = `
     <method name="PlayPause"/>
     <method name="Next"/>
     <method name="Previous"/>
+    <method name="Seek">
+      <arg direction="in" type="x" name="Offset"/>
+    </method>
     <method name="SetPosition">
       <arg direction="in" type="o" name="TrackId"/>
       <arg direction="in" type="x" name="Position"/>
@@ -227,6 +230,15 @@ class MprisPlayer extends EventEmitter {
         this._player.SetPositionAsync(this.trackId, position).catch(logDBusError);
     }
 
+    // Moves by `seconds`, backwards when negative.
+    skip(seconds) {
+        if (!this.canSeek)
+            return;
+        const offset = Math.round(seconds * GLib.USEC_PER_SEC);
+        this._setPosition(Math.max(0, Math.min(this.length, this.position + offset)));
+        this._player.SeekAsync(offset).catch(logDBusError);
+    }
+
     toggleShuffle() {
         if (this._player)
             this._player.Shuffle = !this.shuffle;
@@ -253,16 +265,22 @@ class MprisPlayer extends EventEmitter {
     }
 }
 
+// Players already playing when the extension starts should not peek.
+const SETTLE_MS = 2000;
+
 /**
  * Tracks every MPRIS player on the session bus and picks the one the notch
  * should show: the player that is playing, or else the one that played last.
- * Emits 'changed' whenever that player or its state changes.
+ * Emits 'changed' whenever that player or its state changes, and
+ * 'track-changed' when a new track starts playing or playback resumes.
  */
 export class MediaManager extends EventEmitter {
     constructor() {
         super();
         this._players = new Map();
         this._lastActive = null;
+        this._playingKey = null;
+        this._startTime = GLib.get_monotonic_time();
 
         this._nameWatchId = Gio.DBus.session.signal_subscribe(
             'org.freedesktop.DBus', 'org.freedesktop.DBus', 'NameOwnerChanged',
@@ -303,6 +321,7 @@ export class MediaManager extends EventEmitter {
             if (player.playing)
                 this._lastActive = player;
             this.emit('changed');
+            this._checkTrack();
         });
         this._players.set(busName, player);
     }
@@ -316,6 +335,17 @@ export class MediaManager extends EventEmitter {
             this._lastActive = null;
         player.destroy();
         this.emit('changed');
+    }
+
+    _checkTrack() {
+        const player = this.activePlayer;
+        const key = player?.playing ? `${player.busName}\n${player.title}\n${player.artists}` : null;
+        if (key === this._playingKey)
+            return;
+        this._playingKey = key;
+        const settled = GLib.get_monotonic_time() - this._startTime > SETTLE_MS * 1000;
+        if (key && settled)
+            this.emit('track-changed', player);
     }
 
     get activePlayer() {

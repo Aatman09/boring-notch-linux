@@ -1,3 +1,6 @@
+import Meta from 'gi://Meta';
+import Shell from 'gi://Shell';
+
 import {Extension, InjectionManager} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Urgency} from 'resource:///org/gnome/shell/ui/messageTray.js';
@@ -94,6 +97,16 @@ export default class BoringNotchExtension extends Extension {
 
         this._clockMover = new ClockMover(this._settings);
         this._injectIntoShell();
+        this._addKeybindings();
+    }
+
+    _addKeybindings() {
+        const modes = Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW;
+        const flags = Meta.KeyBindingFlags.IGNORE_AUTOREPEAT;
+        Main.wm.addKeybinding('toggle-notch', this._settings, flags, modes,
+            () => this._island.toggleFromKeyboard());
+        Main.wm.addKeybinding('show-music-peek', this._settings, flags, modes,
+            () => this._island.showMusicPeek());
     }
 
     _injectIntoShell() {
@@ -164,6 +177,8 @@ export default class BoringNotchExtension extends Extension {
     }
 
     disable() {
+        Main.wm.removeKeybinding('toggle-notch');
+        Main.wm.removeKeybinding('show-music-peek');
         this._injections.clear();
         this._injections = null;
         this._micInput?._maybeShowInput();

@@ -3,11 +3,14 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GnomeDesktop from 'gi://GnomeDesktop';
 import GObject from 'gi://GObject';
+import Pango from 'gi://Pango';
 import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+import {getMixerControl} from 'resource:///org/gnome/shell/ui/status/volume.js';
 
-import {BatterySneakView, IconTextView, InlineHudView, LiveMediaView} from './closedViews.js';
+import {BatterySneakView, IconTextView, InlineHudView, LiveMediaView, MusicPeekView} from './closedViews.js';
 import {NotchShape} from './notchShape.js';
 import {OpenView} from './openView.js';
 import {Spring, SpringAnimator} from './spring.js';
@@ -41,7 +44,10 @@ const BATTERY_TIMEOUT_MS = 2500;
 const NOTIFICATION_TIMEOUT_MS = 4000;
 const DOWNLOAD_TIMEOUT_MS = 4000;
 const TIMER_DONE_TIMEOUT_MS = 6000;
-const PAUSE_LINGER_MS = 3000;
+const MUSIC_PEEK_TIMEOUT_MS = 3000;
+// A notch opened from the keyboard closes by itself unless the pointer
+// comes to it.
+const KEYBOARD_OPEN_MS = 4000;
 const FADE_MS = 150;
 // Room on each side of the clock, in design pixels.
 const CLOCK_PADDING = 16;
@@ -50,6 +56,18 @@ const CLOCK_PADDING = 16;
 const PARKED_Y = -10000;
 
 const State = {CLOSED: 'closed', OPEN: 'open'};
+
+// Which peek wins when several arrive together. A higher one shows at once;
+// a lower one waits for its turn.
+const Priority = {MUSIC: 0, STATUS: 1, NOTIFICATION: 2, HUD: 3};
+// Peeks still waiting after this long are dropped rather than shown late.
+const STALE_US = 10 * GLib.USEC_PER_SEC;
+
+// Gestures on the notch. Touchpad deltas are summed until they pass the
+// threshold; a pause longer than the gap starts a new gesture.
+const SWIPE_THRESHOLD = 1.5;
+const GESTURE_GAP_US = 300 * 1000;
+const VOLUME_STEP = 0.05;
 
 export const Island = GObject.registerClass(
 class Island extends St.Widget {
@@ -70,8 +88,12 @@ class Island extends St.Widget {
         this._artCache = artCache;
         this._state = State.CLOSED;
         this._tab = 'home';
+        this._peeks = [];
         this._sneak = null;
         this._sneakAction = null;
+        this._gesture = {dx: 0, dy: 0, time: 0, done: false};
+        this._soundSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.sound'});
+        this._touchpadSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.peripherals.touchpad'});
         this._showMedia = false;
         this._artUrl = null;
         this._artUri = null;
@@ -83,19 +105,19 @@ class Island extends St.Widget {
         this._shape = new NotchShape();
         this.add_child(this._shape);
 
-        this._closedLayer = new St.Widget({layout_manager: new Clutter.BinLayout()});
-        this._closedHalf = 0;
+        // Each closed view keeps the width it was laid out at, and is moved
+        // with a translation to stay centred. A view fading out therefore
+        // keeps its layout while the notch resizes for the next one.
+        this._closedLayer = new St.Widget();
         this._openHalf = 0;
         this.add_child(this._closedLayer);
 
         // The top bar clock, when it lives in the notch. It sits behind the
         // live activities, in the empty middle they leave.
-        this._clockBox = new St.BoxLayout({
-            style_class: 'bn-clock-box',
-            x_align: Clutter.ActorAlign.CENTER,
-            y_align: Clutter.ActorAlign.CENTER,
-        });
+        this._clockBox = new St.BoxLayout({style_class: 'bn-clock-box'});
         this._clockLabel = new St.Label({style_class: 'bn-clock', y_align: Clutter.ActorAlign.CENTER});
+        // Never shorten the time: the notch is sized to fit it.
+        this._clockLabel.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
         this._unreadDot = new St.Widget({style_class: 'bn-unread-dot', y_align: Clutter.ActorAlign.CENTER});
         this._clockBox.add_child(this._clockLabel);
         this._clockBox.add_child(this._unreadDot);
@@ -109,12 +131,14 @@ class Island extends St.Widget {
         this._timerLive = new IconTextView('bn-timer-live', 52);
         this._downloadLive = new IconTextView('bn-download-live', 52);
         this._messageSneak = new IconTextView('bn-message-sneak', 150, {peek: true});
+        this._musicPeek = new MusicPeekView();
         [this._liveMedia, this._hud, this._batterySneak, this._timerLive,
-            this._downloadLive, this._messageSneak]
+            this._downloadLive, this._messageSneak, this._musicPeek]
             .forEach(v => this._closedLayer.add_child(v));
         this._closedView = null;
 
         this._openView = new OpenView({
+            settings,
             battery,
             timer,
             openPreferences: () => {
@@ -134,19 +158,11 @@ class Island extends St.Widget {
         this._springs = [this._width, this._height, this._topRadius, this._bottomRadius];
         this._animator = new SpringAnimator(this, this._springs, () => this._applyGeometry());
 
+        this._menu = this._buildMenu(openPreferences);
+
         this.connect('notify::hover', () => this._onHoverChanged());
-        this.connect('button-press-event', () => {
-            if (this._state !== State.CLOSED)
-                return Clutter.EVENT_PROPAGATE;
-            if (this._sneakAction) {
-                const action = this._sneakAction;
-                this._endSneak();
-                action();
-            } else {
-                this.open();
-            }
-            return Clutter.EVENT_STOP;
-        });
+        this.connect('button-press-event', (_a, event) => this._onButtonPress(event));
+        this.connect('scroll-event', (_a, event) => this._onScroll(event));
 
         settings.connectObject(
             'changed::closed-width', () => this._relayout(),
@@ -157,7 +173,12 @@ class Island extends St.Widget {
             this);
         zoom.connectObject('changed', () => this._relayout(true), this);
         this._clockLabel.connect('notify::text', () => this._relayout());
-        media.connectObject('changed', () => this._syncMedia(), this);
+        // A new font changes how wide the time is.
+        this._clockLabel.connect('style-changed', () => this._relayout());
+        media.connectObject(
+            'changed', () => this._syncMedia(),
+            'track-changed', (_m, player) => this._onTrackChanged(player),
+            this);
         battery.connectObject('plugged', () => this._onPlugged(), this);
         timer.connectObject(
             'changed', () => this._syncTimer(),
@@ -197,7 +218,7 @@ class Island extends St.Widget {
     }
 
     get _zoom() {
-        return this._zoomSource.value;
+        return this._zoomSource.layoutValue;
     }
 
     // The closed notch is as tall as the top bar, like boring.notch's
@@ -217,7 +238,7 @@ class Island extends St.Widget {
 
         if (opening) {
             this._state = State.OPEN;
-            this._endSneak(false);
+            this._clearPeeks();
             this._fade(this._closedLayer, false);
             this._showOpenView(true);
             this._openView.startTicking();
@@ -234,6 +255,9 @@ class Island extends St.Widget {
             return;
         this._state = State.CLOSED;
         this._clearTimeout('hover');
+        this._clearTimeout('keyboard');
+        if (!this._settings.get_boolean('remember-last-tab'))
+            this._tab = 'home';
 
         this._showOpenView(false);
         this._fade(this._closedLayer, true, FADE_MS);
@@ -251,15 +275,45 @@ class Island extends St.Widget {
             this.open(tab);
     }
 
+    // For the toggle-notch shortcut.
+    toggleFromKeyboard() {
+        if (this._state === State.OPEN) {
+            this.close();
+            return;
+        }
+        this.open();
+        this._setTimeout('keyboard', KEYBOARD_OPEN_MS, () => {
+            if (!this.hover)
+                this.close();
+        });
+    }
+
+    // For the music-peek shortcut: show what is playing now.
+    showMusicPeek() {
+        const player = this._media.activePlayer;
+        if (player)
+            this._onTrackChanged(player, true);
+    }
+
     /**
-     * Shows a volume or brightness change in the closed notch. Returns false
-     * when the notch is open, so the caller can fall back to the GNOME popup.
+     * Shows a volume or brightness change in the notch. Returns false when
+     * the notch cannot show it, so the caller can fall back to the GNOME
+     * popup.
      */
     showHud(icon, label, level, maxLevel) {
-        if (this._state === State.OPEN || !this.visible)
+        if (!this.visible)
             return false;
-        this._hud.update(icon, label, level, maxLevel);
-        this._showSneak(this._hud, HUD_TIMEOUT_MS);
+        if (this._state === State.OPEN) {
+            return this._settings.get_boolean('hud-in-open-notch') &&
+                this._openView.showHud(icon, level, maxLevel);
+        }
+        this._showPeek({
+            view: this._hud,
+            apply: () => this._hud.update(icon, label, level, maxLevel),
+            timeout: HUD_TIMEOUT_MS,
+            priority: Priority.HUD,
+            key: 'hud',
+        });
         return true;
     }
 
@@ -271,61 +325,140 @@ class Island extends St.Widget {
     showNotification(notification) {
         if (this._state === State.OPEN || !this.visible)
             return false;
-        this._messageSneak.update({
+        const content = {
             icon: notification.gicon ?? notification.source?.icon ?? null,
             iconName: 'preferences-system-notifications-symbolic',
             title: notification.title ?? '',
             body: (notification.body ?? '').replace(/\s+/g, ' '),
+        };
+        this._showPeek({
+            view: this._messageSneak,
+            apply: () => this._messageSneak.update(content),
+            timeout: NOTIFICATION_TIMEOUT_MS,
+            action: () => notification.activate(),
+            priority: Priority.NOTIFICATION,
         });
-        this._showSneak(this._messageSneak, NOTIFICATION_TIMEOUT_MS, () => notification.activate());
         return true;
+    }
+
+    _onTrackChanged(player, force = false) {
+        if (this._state === State.OPEN || !this.visible)
+            return;
+        if (!force && !this._settings.get_boolean('music-peek'))
+            return;
+        this._showPeek({
+            view: this._musicPeek,
+            apply: () => this._musicPeek.update(player, this._artUri),
+            timeout: MUSIC_PEEK_TIMEOUT_MS,
+            action: () => this.open('home'),
+            priority: Priority.MUSIC,
+            key: 'music',
+        });
     }
 
     _onPlugged() {
         if (!this._settings.get_boolean('show-battery-activity') || this._state === State.OPEN)
             return;
-        this._batterySneak.update(this._battery);
-        this._showSneak(this._batterySneak, BATTERY_TIMEOUT_MS);
+        this._showPeek({
+            view: this._batterySneak,
+            apply: () => this._batterySneak.update(this._battery),
+            timeout: BATTERY_TIMEOUT_MS,
+            key: 'battery',
+        });
     }
 
     _onTimerFinished() {
         global.display.get_sound_player().play_from_theme('complete', 'Timer done', null);
         if (this._state === State.OPEN)
             return;
-        this._timerLive.update({iconName: 'alarm-symbolic', title: 'Done'});
-        this._showSneak(this._timerLive, TIMER_DONE_TIMEOUT_MS, () => this.open('timer'));
+        this._showPeek({
+            view: this._timerLive,
+            apply: () => this._timerLive.update({iconName: 'alarm-symbolic', title: 'Done'}),
+            timeout: TIMER_DONE_TIMEOUT_MS,
+            action: () => this.open('timer'),
+            priority: Priority.NOTIFICATION,
+            key: 'timer',
+        });
     }
 
     _onDownloadFinished(file) {
         if (!this._settings.get_boolean('show-downloads') || this._state === State.OPEN)
             return;
-        this._messageSneak.update({
-            iconName: 'folder-download-symbolic',
-            title: 'Downloaded',
-            body: file.get_basename(),
-        });
-        this._showSneak(this._messageSneak, DOWNLOAD_TIMEOUT_MS, () => {
-            const folder = this._downloads.folder?.get_uri();
-            if (folder)
-                Gio.AppInfo.launch_default_for_uri(folder, global.create_app_launch_context(0, -1));
+        this._showPeek({
+            view: this._messageSneak,
+            apply: () => this._messageSneak.update({
+                iconName: 'folder-download-symbolic',
+                title: 'Downloaded',
+                body: file.get_basename(),
+            }),
+            timeout: DOWNLOAD_TIMEOUT_MS,
+            action: () => {
+                const folder = this._downloads.folder?.get_uri();
+                if (folder)
+                    Gio.AppInfo.launch_default_for_uri(folder, global.create_app_launch_context(0, -1));
+            },
         });
     }
 
-    _showSneak(view, timeout, action = null) {
-        this._sneak = view;
-        this._sneakAction = action;
-        this._setTimeout('sneak', timeout, () => this._endSneak());
+    /**
+     * Queues a peek. Peeks share views, so `apply` fills the view in when
+     * the peek's turn comes. A peek with the same `key` as the one showing
+     * replaces it and restarts its time, so repeated volume presses update
+     * one peek instead of queueing many.
+     */
+    _showPeek({view, apply = null, timeout, action = null, priority = Priority.STATUS, key = null}) {
+        const peek = {view, apply, timeout, action, priority, key, queued: GLib.get_monotonic_time()};
+        const head = this._peeks[0];
+
+        if (key && head?.key === key) {
+            this._peeks[0] = peek;
+            this._startPeek(peek);
+            return;
+        }
+        if (key)
+            this._peeks = this._peeks.filter((p, i) => i === 0 || p.key !== key);
+
+        if (!head || priority >= head.priority) {
+            this._peeks.unshift(peek);
+            this._startPeek(peek);
+            return;
+        }
+        // Wait behind the one showing and anything more important.
+        const index = this._peeks.findIndex((p, i) => i > 0 && p.priority < priority);
+        this._peeks.splice(index < 0 ? this._peeks.length : index, 0, peek);
+    }
+
+    _startPeek(peek) {
+        peek.apply?.();
+        this._sneak = peek.view;
+        this._sneakAction = peek.action;
+        this._setTimeout('sneak', peek.timeout, () => this._endSneak());
         this._relayout();
     }
 
-    _endSneak(relayout = true) {
+    // Ends the peek that is showing and moves on to the next one.
+    _endSneak() {
         this._clearTimeout('sneak');
+        this._peeks.shift();
+        const now = GLib.get_monotonic_time();
+        this._peeks = this._peeks.filter(p => now - p.queued < STALE_US);
+        if (this._peeks.length > 0 && this._state === State.CLOSED) {
+            this._startPeek(this._peeks[0]);
+            return;
+        }
         this._sneak = null;
         this._sneakAction = null;
         // The timer view doubles as its own "done" peek; put it back.
         this._syncTimer();
-        if (relayout)
-            this._relayout();
+        this._relayout();
+    }
+
+    _clearPeeks() {
+        this._clearTimeout('sneak');
+        this._peeks = [];
+        this._sneak = null;
+        this._sneakAction = null;
+        this._syncTimer();
     }
 
     _syncTimer() {
@@ -380,7 +513,7 @@ class Island extends St.Widget {
             this._clearTimeout('linger');
             this._showMedia = false;
         } else if (this._showMedia && !this._timeouts.has('linger')) {
-            this._setTimeout('linger', PAUSE_LINGER_MS, () => {
+            this._setTimeout('linger', this._settings.get_int('media-linger-seconds') * 1000, () => {
                 this._showMedia = !!this._media.activePlayer?.playing;
                 this._relayout();
             });
@@ -405,6 +538,8 @@ class Island extends St.Widget {
                 return;
             this._artUri = uri;
             this._liveMedia.update(uri);
+            if (this._sneak === this._musicPeek)
+                this._musicPeek.update(this._media.activePlayer, uri);
             this._openView.update(this._media.activePlayer, uri);
         });
     }
@@ -425,6 +560,8 @@ class Island extends St.Widget {
 
     _onHoverChanged() {
         this._clearTimeout('hover');
+        if (this.hover)
+            this._clearTimeout('keyboard');
 
         if (this.hover && this._state === State.CLOSED) {
             if (this._settings.get_boolean('open-on-hover'))
@@ -474,9 +611,14 @@ class Island extends St.Widget {
             this._showClosedView(view);
             this._showClock(showClock);
 
-            // The closed content is laid out at the notch's final width.
-            this._closedHalf = this._snap(width / 2) * scale;
-            this._closedLayer.set_size(2 * this._closedHalf, notchHeight * scale);
+            // Only the current view takes the new width; one fading out
+            // keeps the width it had.
+            if (view)
+                this._place(view, width * scale, notchHeight * scale);
+            if (this.get_stage()) {
+                const [, clockWidth] = this._clockBox.get_preferred_width(-1);
+                this._place(this._clockBox, clockWidth, notchHeight * scale);
+            }
         }
 
         // Every tab's page always has its size, even while parked, so it is
@@ -577,8 +719,145 @@ class Island extends St.Widget {
             this._topRadius.value, this._bottomRadius.value, this._scale);
 
         // Content stays centred on the screen while the notch grows.
-        this._closedLayer.translation_x = half - this._closedHalf;
+        for (const child of this._closedLayer.get_children()) {
+            if (child._bnHalf !== undefined)
+                child.translation_x = half - child._bnHalf;
+        }
         this._openView.translation_x = half - this._openHalf;
+    }
+
+    // Sizes a closed-layer child, centred on whole device pixels.
+    _place(actor, width, height) {
+        const half = this._snap(width / 2);
+        actor._bnHalf = half;
+        actor.set_size(2 * half, height);
+        actor.translation_x = this._snap(this.width / 2) - half;
+    }
+
+    _buildMenu(openPreferences) {
+        const menu = new PopupMenu.PopupMenu(this, 0.5, St.Side.TOP);
+        menu.addAction('Today', () => this.open('today'));
+        menu.addAction('Timer', () => this.open('timer'));
+        menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        menu.addAction('Settings', () => openPreferences());
+        Main.uiGroup.add_child(menu.actor);
+        menu.actor.hide();
+        this._menuManager = new PopupMenu.PopupMenuManager(this);
+        this._menuManager.addMenu(menu);
+        return menu;
+    }
+
+    _onButtonPress(event) {
+        const button = event.get_button();
+        if (button === Clutter.BUTTON_SECONDARY) {
+            this._menu.toggle();
+            return Clutter.EVENT_STOP;
+        }
+        if (this._state !== State.CLOSED)
+            return Clutter.EVENT_PROPAGATE;
+        if (button === Clutter.BUTTON_MIDDLE) {
+            this._media.activePlayer?.playPause();
+            return Clutter.EVENT_STOP;
+        }
+        if (this._sneakAction) {
+            const action = this._sneakAction;
+            this._endSneak();
+            action();
+        } else {
+            this.open();
+        }
+        return Clutter.EVENT_STOP;
+    }
+
+    /**
+     * Mouse wheel on the closed notch changes the volume. On a touchpad,
+     * swiping down opens the notch, swiping up closes it, and swiping
+     * sideways changes track while music shows.
+     */
+    _onScroll(event) {
+        if (!this._settings.get_boolean('gestures'))
+            return Clutter.EVENT_PROPAGATE;
+
+        const direction = event.get_scroll_direction();
+        if (direction === Clutter.ScrollDirection.UP || direction === Clutter.ScrollDirection.DOWN) {
+            if (this._state !== State.CLOSED || !this._settings.get_boolean('scroll-volume'))
+                return Clutter.EVENT_PROPAGATE;
+            this._changeVolume(direction === Clutter.ScrollDirection.UP ? 1 : -1);
+            return Clutter.EVENT_STOP;
+        }
+        if (direction !== Clutter.ScrollDirection.SMOOTH)
+            return Clutter.EVENT_PROPAGATE;
+
+        let [dx, dy] = event.get_scroll_delta();
+        if (event.get_scroll_source() !== Clutter.ScrollSource.FINGER) {
+            // A smooth mouse wheel: whole notches of it change the volume.
+            if (this._state !== State.CLOSED || !this._settings.get_boolean('scroll-volume'))
+                return Clutter.EVENT_PROPAGATE;
+            this._gesture.dy += dy;
+            const steps = Math.trunc(this._gesture.dy);
+            if (steps !== 0) {
+                this._gesture.dy -= steps;
+                this._changeVolume(-steps);
+            }
+            return Clutter.EVENT_STOP;
+        }
+
+        // Natural scrolling flips the deltas; undo that so "fingers move
+        // down" always means open.
+        if (this._touchpadSettings.get_boolean('natural-scroll')) {
+            dx = -dx;
+            dy = -dy;
+        }
+        const g = this._gesture;
+        const now = GLib.get_monotonic_time();
+        if (now - g.time > GESTURE_GAP_US || event.get_scroll_finish_flags() !== Clutter.ScrollFinishFlags.NONE)
+            Object.assign(g, {dx: 0, dy: 0, done: false});
+        g.time = now;
+        if (g.done)
+            return Clutter.EVENT_STOP;
+        g.dx += dx;
+        g.dy += dy;
+
+        if (this._state === State.CLOSED && g.dy > SWIPE_THRESHOLD) {
+            g.done = true;
+            this.open();
+        } else if (this._state === State.OPEN && g.dy < -SWIPE_THRESHOLD) {
+            g.done = true;
+            this.close();
+        } else if (this._state === State.CLOSED && Math.abs(g.dx) > SWIPE_THRESHOLD &&
+                   [this._liveMedia, this._musicPeek].includes(this._closedView)) {
+            g.done = true;
+            if (g.dx < 0)
+                this._media.activePlayer?.next();
+            else
+                this._media.activePlayer?.previous();
+        }
+        return Clutter.EVENT_STOP;
+    }
+
+    _changeVolume(steps) {
+        const control = getMixerControl();
+        const sink = control.get_default_sink();
+        if (!sink)
+            return;
+        const normal = control.get_vol_max_norm();
+        const top = this._soundSettings.get_boolean('allow-volume-above-100-percent')
+            ? control.get_vol_max_amplified() : normal;
+        const volume = Math.max(0, Math.min(top, sink.volume + steps * VOLUME_STEP * normal));
+        sink.volume = volume;
+        if (sink.is_muted && volume > 0)
+            sink.change_is_muted(false);
+        sink.push_volume();
+
+        const level = volume / normal;
+        let icon = 'audio-volume-muted-symbolic';
+        if (level > 2 / 3)
+            icon = 'audio-volume-high-symbolic';
+        else if (level > 1 / 3)
+            icon = 'audio-volume-medium-symbolic';
+        else if (level > 0)
+            icon = 'audio-volume-low-symbolic';
+        this.showHud(new Gio.ThemedIcon({name: icon}), null, level, top / normal);
     }
 
     _fade(actor, visible, delay = 0) {
@@ -615,6 +894,7 @@ class Island extends St.Widget {
     }
 
     _onDestroy() {
+        this._menu.destroy();
         this._timeouts.forEach(id => GLib.source_remove(id));
         this._timeouts.clear();
         this._animator.destroy();

@@ -37,13 +37,15 @@ export class ScaledStylesheet {
 
     _load() {
         const zoom = this._zoom.value;
-        if (zoom === this._loadedZoom)
+        const textZoom = this._zoom.textValue;
+        const key = `${zoom}/${textZoom}`;
+        if (key === this._loadedKey)
             return;
-        this._loadedZoom = zoom;
+        this._loadedKey = key;
 
         const css = this._template.replace(/([\w-]+)(\s*:\s*)([^;{}]*)/g, (decl, property, colon, value) => {
             const scaled = value.replace(/(\d*\.?\d+)px/g, (_m, number) => {
-                const px = parseFloat(number) * zoom;
+                const px = parseFloat(number) * (property === 'font-size' ? textZoom : zoom);
                 if (property === 'icon-size')
                     return `${iconSize(px)}px`;
                 return `${px > 0 ? Math.max(1, Math.round(px)) : 0}px`;

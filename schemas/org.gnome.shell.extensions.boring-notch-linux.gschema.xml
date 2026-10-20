@@ -21,6 +21,11 @@
       <default>1.0</default>
       <summary>Size of the notch and everything in it, as a multiple of the normal size</summary>
     </key>
+    <key name="text-size" type="d">
+      <range min="0.8" max="1.6"/>
+      <default>1.25</default>
+      <summary>Size of the text in the notch, as a multiple of the normal size</summary>
+    </key>
     <key name="clock-mode" type="s">
       <choices>
         <choice value="notch"/>
@@ -53,6 +58,43 @@
     <key name="visualizer-follows-audio" type="b">
       <default>true</default>
       <summary>Make the music bars follow what is playing, by reading the level of the sound output</summary>
+    </key>
+    <key name="gestures" type="b">
+      <default>true</default>
+      <summary>Gestures on the notch: swipe down to open, up to close, sideways to change track</summary>
+    </key>
+    <key name="scroll-volume" type="b">
+      <default>true</default>
+      <summary>Change the volume with the mouse wheel over the closed notch</summary>
+    </key>
+    <key name="remember-last-tab" type="b">
+      <default>false</default>
+      <summary>Open on the last tab used instead of Home</summary>
+    </key>
+    <key name="toggle-notch" type="as">
+      <default><![CDATA[['<Super><Shift>n']]]></default>
+      <summary>Shortcut that opens and closes the notch</summary>
+    </key>
+    <key name="show-music-peek" type="as">
+      <default><![CDATA[[]]]></default>
+      <summary>Shortcut that shows what is playing</summary>
+    </key>
+    <key name="music-peek" type="b">
+      <default>true</default>
+      <summary>Peek out with the track when music starts or the track changes</summary>
+    </key>
+    <key name="media-linger-seconds" type="i">
+      <range min="0" max="10"/>
+      <default>3</default>
+      <summary>How long the music stays in the closed notch after pausing, in seconds</summary>
+    </key>
+    <key name="player-buttons" type="as">
+      <default>['shuffle', 'previous', 'play-pause', 'next', 'repeat']</default>
+      <summary>The buttons in the player, in order</summary>
+    </key>
+    <key name="hud-in-open-notch" type="b">
+      <default>true</default>
+      <summary>Show volume and brightness changes in the open notch's header</summary>
     </key>
   </schema>
 </schemalist>

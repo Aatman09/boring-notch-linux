@@ -3,6 +3,7 @@ import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import St from 'gi://St';
 
+import * as BarLevel from 'resource:///org/gnome/shell/ui/barLevel.js';
 import * as Calendar from 'resource:///org/gnome/shell/ui/calendar.js';
 import * as Slider from 'resource:///org/gnome/shell/ui/slider.js';
 
@@ -11,6 +12,19 @@ import {AlbumArt, formatTime} from './widgets.js';
 const formatSeconds = s => formatTime(s * GLib.USEC_PER_SEC);
 
 const TICK_MS = 500;
+const HEADER_HUD_MS = 1500;
+const SKIP_SECONDS = 15;
+
+// The buttons the player row can show, in the order of the setting.
+const PLAYER_BUTTONS = {
+    'shuffle': {icon: 'media-playlist-shuffle-symbolic', style: 'bn-toggle', press: p => p.toggleShuffle()},
+    'previous': {icon: 'media-skip-backward-symbolic', press: p => p.previous()},
+    'back-15': {icon: 'media-seek-backward-symbolic', press: p => p.skip(-SKIP_SECONDS)},
+    'play-pause': {icon: 'media-playback-start-symbolic', style: 'bn-play', press: p => p.playPause()},
+    'forward-15': {icon: 'media-seek-forward-symbolic', press: p => p.skip(SKIP_SECONDS)},
+    'next': {icon: 'media-skip-forward-symbolic', press: p => p.next()},
+    'repeat': {icon: 'media-playlist-repeat-symbolic', style: 'bn-toggle', press: p => p.cycleLoop()},
+};
 const TIMER_PRESETS = [1, 5, 10, 15, 25];
 
 export const TABS = [
@@ -53,7 +67,17 @@ const Header = GObject.registerClass({
 
         this.add_child(new St.Widget({x_expand: true}));
 
-        this.add_child(iconButton('emblem-system-symbolic', 'bn-header-button', openPreferences));
+        // Volume and brightness changes while the notch is open show here,
+        // in place of the GNOME popup.
+        this._hud = new St.BoxLayout({style_class: 'bn-header-hud', visible: false});
+        this._hudIcon = new St.Icon({style_class: 'bn-header-hud-icon', y_align: Clutter.ActorAlign.CENTER});
+        this._hudBar = new BarLevel.BarLevel({style_class: 'bn-hud-bar', y_align: Clutter.ActorAlign.CENTER});
+        this._hud.add_child(this._hudIcon);
+        this._hud.add_child(this._hudBar);
+        this.add_child(this._hud);
+
+        this._gear = iconButton('emblem-system-symbolic', 'bn-header-button', openPreferences);
+        this.add_child(this._gear);
 
         this._batteryBox = new St.BoxLayout({style_class: 'bn-header-battery'});
         this._batteryLabel = new St.Label({y_align: Clutter.ActorAlign.CENTER});
@@ -64,6 +88,36 @@ const Header = GObject.registerClass({
 
         battery.connectObject('changed', () => this._syncBattery(), this);
         this._syncBattery();
+        this.connect('destroy', () => this._clearHudTimeout());
+    }
+
+    // Returns false for changes without a level, such as Caps Lock.
+    showHud(icon, level, maxLevel) {
+        if (typeof level !== 'number')
+            return false;
+        const max = maxLevel > 0 ? maxLevel : 1;
+        this._hudIcon.gicon = icon;
+        this._hudBar.maximum_value = max;
+        this._hudBar.overdrive_start = 1;
+        this._hudBar.value = Math.max(0, Math.min(level, max));
+        this._hud.show();
+        this._gear.hide();
+        this._batteryBox.hide();
+        this._clearHudTimeout();
+        this._hudTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, HEADER_HUD_MS, () => {
+            this._hudTimeoutId = 0;
+            this._hud.hide();
+            this._gear.show();
+            this._syncBattery();
+            return GLib.SOURCE_REMOVE;
+        });
+        return true;
+    }
+
+    _clearHudTimeout() {
+        if (this._hudTimeoutId)
+            GLib.source_remove(this._hudTimeoutId);
+        this._hudTimeoutId = 0;
     }
 
     setActiveTab(id) {
@@ -80,7 +134,7 @@ const Header = GObject.registerClass({
     }
 
     _syncBattery() {
-        this._batteryBox.visible = this._battery.present;
+        this._batteryBox.visible = this._battery.present && !this._hud.visible;
         this._batteryLabel.text = `${this._battery.percentage}%`;
         this._batteryIcon.icon_name = this._battery.iconName;
     }
@@ -89,7 +143,7 @@ const Header = GObject.registerClass({
 /** The music player from NotchHomeView. */
 const MediaPlayer = GObject.registerClass(
 class MediaPlayer extends St.BoxLayout {
-    _init() {
+    _init(settings) {
         super._init({style_class: 'bn-player', x_expand: true, y_expand: true});
 
         this._art = new AlbumArt('bn-art');
@@ -141,17 +195,31 @@ class MediaPlayer extends St.BoxLayout {
         times.add_child(this._remaining);
         column.add_child(times);
 
-        const controls = new St.BoxLayout({style_class: 'bn-controls', x_align: Clutter.ActorAlign.CENTER});
-        this._shuffle = iconButton('media-playlist-shuffle-symbolic', 'bn-toggle', () => this._player?.toggleShuffle());
-        this._previous = iconButton('media-skip-backward-symbolic', '', () => this._player?.previous());
-        this._playPause = iconButton('media-playback-start-symbolic', 'bn-play', () => this._player?.playPause());
-        this._next = iconButton('media-skip-forward-symbolic', '', () => this._player?.next());
-        this._loop = iconButton('media-playlist-repeat-symbolic', 'bn-toggle', () => this._player?.cycleLoop());
-        [this._shuffle, this._previous, this._playPause, this._next, this._loop]
-            .forEach(b => controls.add_child(b));
-        column.add_child(controls);
+        this._controls = new St.BoxLayout({style_class: 'bn-controls', x_align: Clutter.ActorAlign.CENTER});
+        column.add_child(this._controls);
+        this._settings = settings;
+        this._buttons = {};
+        settings.connectObject('changed::player-buttons', () => this._buildControls(), this);
+        this._buildControls();
 
         this.dragging = false;
+    }
+
+    _buildControls() {
+        this._controls.destroy_all_children();
+        this._buttons = {};
+        for (const id of this._settings.get_strv('player-buttons')) {
+            const spec = PLAYER_BUTTONS[id];
+            if (!spec || this._buttons[id])
+                continue;
+            this._buttons[id] = iconButton(spec.icon, spec.style ?? '', () => {
+                if (this._player)
+                    spec.press(this._player);
+            });
+            this._controls.add_child(this._buttons[id]);
+        }
+        if (this._player)
+            this._syncButtons(this._player);
     }
 
     update(player, artUri) {
@@ -159,20 +227,34 @@ class MediaPlayer extends St.BoxLayout {
         this._art.set_art(artUri);
         this._title.text = player.title;
         this._artist.text = player.artists || player.identity;
-        this._playPause.child.icon_name = player.playing
-            ? 'media-playback-pause-symbolic'
-            : 'media-playback-start-symbolic';
-        this._previous.reactive = player.canGoPrevious;
-        this._next.reactive = player.canGoNext;
         this._slider.reactive = player.canSeek;
-
-        this._setChecked(this._shuffle, player.shuffle);
-        this._setChecked(this._loop, player.loopStatus !== 'None');
-        this._loop.child.icon_name = player.loopStatus === 'Track'
-            ? 'media-playlist-repeat-song-symbolic'
-            : 'media-playlist-repeat-symbolic';
-
+        this._syncButtons(player);
         this.tick();
+    }
+
+    _syncButtons(player) {
+        const b = this._buttons;
+        if (b['play-pause']) {
+            b['play-pause'].child.icon_name = player.playing
+                ? 'media-playback-pause-symbolic'
+                : 'media-playback-start-symbolic';
+        }
+        if (b.previous)
+            b.previous.reactive = player.canGoPrevious;
+        if (b.next)
+            b.next.reactive = player.canGoNext;
+        for (const id of ['back-15', 'forward-15']) {
+            if (b[id])
+                b[id].reactive = player.canSeek;
+        }
+        if (b.shuffle)
+            this._setChecked(b.shuffle, player.shuffle);
+        if (b.repeat) {
+            this._setChecked(b.repeat, player.loopStatus !== 'None');
+            b.repeat.child.icon_name = player.loopStatus === 'Track'
+                ? 'media-playlist-repeat-song-symbolic'
+                : 'media-playlist-repeat-symbolic';
+        }
     }
 
     _setChecked(button, checked) {
@@ -418,14 +500,14 @@ const PARKED_Y = -10000;
 export const OpenView = GObject.registerClass({
     Signals: {'tab-selected': {param_types: [GObject.TYPE_STRING]}},
 }, class OpenView extends St.Widget {
-    _init({battery, timer, openPreferences}) {
+    _init({settings, battery, timer, openPreferences}) {
         super._init({style_class: 'bn-open', opacity: 0});
 
         this._header = new Header(battery, openPreferences);
         this._header.connect('tab-selected', (_h, id) => this.emit('tab-selected', id));
         this.add_child(this._header);
 
-        this._player = new MediaPlayer();
+        this._player = new MediaPlayer(settings);
         this._idle = new IdleView();
         const home = new St.Widget({layout_manager: new Clutter.BinLayout()});
         home.add_child(this._player);
@@ -452,6 +534,10 @@ export const OpenView = GObject.registerClass({
 
     setUnread(unread) {
         this._header.setUnread(unread);
+    }
+
+    showHud(icon, level, maxLevel) {
+        return this._header.showHud(icon, level, maxLevel);
     }
 
     // `sizes` maps each tab to its [width, height] in actor pixels,

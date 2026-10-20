@@ -1,0 +1,1 @@
+{"uuid": "devtools@local", "name": "devtools", "description": "Test only: allows Shell.Eval in the headless session", "shell-version": ["50"]}

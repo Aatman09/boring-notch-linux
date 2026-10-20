@@ -207,3 +207,32 @@ class IconTextView extends ClosedView {
         this._body.visible = body !== '';
     }
 });
+
+/** What just started playing: the cover, then title and artist in one row. */
+export const MusicPeekView = GObject.registerClass(
+class MusicPeekView extends ClosedView {
+    _init() {
+        super._init('bn-music-peek');
+        this.left.x_expand = true;
+        this._art = new AlbumArt('bn-art-small');
+        this._title = new St.Label({style_class: 'bn-icon-text-title', y_align: Clutter.ActorAlign.CENTER});
+        this._artist = new St.Label({style_class: 'bn-icon-text-body', y_align: Clutter.ActorAlign.CENTER});
+        this.left.add_child(this._art);
+        this.left.add_child(this._title);
+        this.left.add_child(this._artist);
+    }
+
+    sideWidth() {
+        return 150;
+    }
+
+    get showsClock() {
+        return false;
+    }
+
+    update(player, artUri) {
+        this._art.set_art(artUri);
+        this._title.text = player.title;
+        this._artist.text = player.artists || player.identity;
+    }
+});

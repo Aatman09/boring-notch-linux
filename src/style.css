@@ -466,3 +466,71 @@
   background-color: #ff9f0a;
   color: #000000;
 }
+
+/* Volume and brightness in the open notch's header */
+
+.bn-header-hud {
+  spacing: 8px;
+  padding: 3px 10px;
+  margin: 4px 0;
+  border-radius: 99px;
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.bn-header-hud-icon {
+  icon-size: 16px;
+}
+
+/* What just started playing */
+
+.bn-music-peek .bn-closed-left {
+  spacing: 8px;
+}
+
+.bn-music-peek .bn-icon-text-title {
+  max-width: 160px;
+}
+
+.bn-music-peek .bn-icon-text-body {
+  max-width: 120px;
+}
+
+/* GNOME's own calendar and notification list inside the notch. Their sizes
+   are set here so that the Text size setting reaches them too. */
+
+#boring-notch .calendar-month-label {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+#boring-notch .calendar-day-heading,
+#boring-notch .calendar-week-number {
+  font-size: 12px;
+}
+
+#boring-notch .calendar-day {
+  font-size: 14px;
+}
+
+#boring-notch .message-source-title,
+#boring-notch .message-group-title,
+#boring-notch .message-header-content {
+  font-size: 12px;
+}
+
+#boring-notch .message-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+#boring-notch .message-content {
+  font-size: 13px;
+}
+
+#boring-notch .message-list-placeholder {
+  font-size: 16px;
+}
+
+#boring-notch .message-list-clear-button {
+  font-size: 13px;
+}
