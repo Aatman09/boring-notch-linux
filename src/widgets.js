@@ -122,6 +122,16 @@ class Visualizer extends St.BoxLayout {
         }
     }
 
+    // Tint from the album art: one inline background-colour per bar, or
+    // the stylesheet's when there is none.
+    setColor(rgb) {
+        const style = rgb
+            ? `background-color: rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]});`
+            : null;
+        for (const bar of this._bars)
+            bar.style = style;
+    }
+
     _showLevels(levels) {
         this._bars.forEach((bar, i) => {
             bar._level = Math.max(levels[i] ?? 0, bar._level - AUDIO_DECAY);

@@ -83,7 +83,7 @@ const VOLUME_STEP = 0.05;
 
 export const Island = GObject.registerClass(
 class Island extends St.Widget {
-    _init({settings, zoom, media, battery, timer, downloads, audio, privacy, bluetooth, keyboard, recording, audioRoute, artCache, openPreferences}) {
+    _init({settings, zoom, media, battery, timer, downloads, audio, privacy, bluetooth, keyboard, recording, audioRoute, artCache, artColor, openPreferences}) {
         super._init({
             name: 'boring-notch',
             reactive: true,
@@ -103,6 +103,7 @@ class Island extends St.Widget {
         this._recording = recording;
         this._audioRoute = audioRoute;
         this._artCache = artCache;
+        this._artColor = artColor;
         this._state = State.CLOSED;
         this._tab = 'home';
         this._peeks = [];
@@ -117,6 +118,10 @@ class Island extends St.Widget {
         this._showMedia = false;
         this._artUrl = null;
         this._artUri = null;
+        // The colour averaged from the current cover and the track it
+        // belongs to, so an answer for a track that has gone is ignored.
+        this._artColorRgb = null;
+        this._artColorTrack = null;
         this._timeouts = new Map();
         this._recordTickId = 0;
         this._recordStartUs = 0;
@@ -238,6 +243,7 @@ class Island extends St.Widget {
             'changed::clock-mode', () => this._syncClock(),
             'changed::show-visualizer', () => this._syncVisualizer(),
             'changed::visualizer-follows-audio', () => this._syncVisualizer(),
+            'changed::art-colors', () => this._syncArtColors(),
             'changed::show-downloads', () => this._relayout(),
             'changed::show-privacy-indicators', () => this._syncPrivacyDots(),
             'changed::show-dnd', () => this._syncMoon(),
@@ -864,6 +870,12 @@ class Island extends St.Widget {
             return;
         this._artUrl = url;
         this._artUri = null;
+        // The colour belongs to the old track from here on: it is dropped
+        // and the decode in flight is stopped.
+        this._artColorRgb = null;
+        this._artColorTrack = null;
+        this._artColor?.cancel();
+        this._applyArtColor();
         this._artCache.resolve(url, uri => {
             // Ignore answers for a track that is no longer playing.
             if (this._artUrl !== url || !this._artCache)
@@ -873,7 +885,39 @@ class Island extends St.Widget {
             if (this._sneak === this._musicPeek)
                 this._musicPeek.update(this._media.activePlayer, uri);
             this._openView.update(this._media.activePlayer, uri);
+            this._loadArtColor(url, uri);
         });
+    }
+
+    _loadArtColor(track, uri) {
+        if (!uri || !this._artColor || !this._settings.get_boolean('art-colors'))
+            return;
+        this._artColorTrack = track;
+        this._artColor.averageColor(uri).then(rgb => {
+            // Ignore an answer for a track that is no longer playing, as
+            // _syncArt does for its uri.
+            if (this._artColorTrack !== track || !this._artColor)
+                return;
+            this._artColorRgb = rgb;
+            this._applyArtColor();
+        }).catch(() => {});
+    }
+
+    // Turning the setting off and on takes the current colour away and
+    // decodes it again.
+    _syncArtColors() {
+        this._artColorRgb = null;
+        this._artColorTrack = null;
+        this._artColor?.cancel();
+        this._applyArtColor();
+        if (this._settings.get_boolean('art-colors'))
+            this._loadArtColor(this._artUrl, this._artUri);
+    }
+
+    // Hand the cover's colour to the bars and the open player.
+    _applyArtColor() {
+        this._liveMedia.setColor(this._artColorRgb);
+        this._openView.setColor(this._artColorRgb);
     }
 
     // Peeks first, then live activities in order of how much they matter
@@ -1247,5 +1291,7 @@ class Island extends St.Widget {
         this._indicator?.disconnectObject(this);
         this._wallClock = null;
         this._artCache = null;
+        this._artColor?.cancel();
+        this._artColor = null;
     }
 });

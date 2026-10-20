@@ -6,6 +6,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Urgency} from 'resource:///org/gnome/shell/ui/messageTray.js';
 
 import {ArtCache} from './src/art.js';
+import {ArtColorLoader} from './src/artColor.js';
 import {AudioLevels, IGNORED_RECORDING_APPS} from './src/audio.js';
 import {AudioRouteMonitor} from './src/audioRoute.js';
 import {BatteryMonitor} from './src/battery.js';
@@ -85,6 +86,7 @@ export default class BoringNotchExtension extends Extension {
         this._timer = new Timer();
         this._downloads = new DownloadWatcher();
         this._artCache = new ArtCache();
+        this._artColor = new ArtColorLoader();
         this._audio = new AudioLevels();
         this._privacy = new PrivacyMonitor();
         this._bluetooth = new BluetoothMonitor();
@@ -106,6 +108,7 @@ export default class BoringNotchExtension extends Extension {
             recording: this._recording,
             audioRoute: this._audioRoute,
             artCache: this._artCache,
+            artColor: this._artColor,
             openPreferences: () => this.openPreferences(),
         });
         Main.layoutManager.addTopChrome(this._island, {trackFullscreen: true});
@@ -215,6 +218,8 @@ export default class BoringNotchExtension extends Extension {
         this._audio = null;
         this._artCache.destroy();
         this._artCache = null;
+        this._artColor.destroy();
+        this._artColor = null;
         this._downloads.destroy();
         this._downloads = null;
         this._timer.destroy();

@@ -28,7 +28,8 @@ the pointer on it.
   showing GNOME banners. Click one to open it. Critical notifications still
   use the GNOME banner.
 - **Music:** album art and four bars in the closed notch while something
-  plays. The bars follow the bass, mids and treble of what's playing. The Home tab has the full player with seek bar, shuffle, previous,
+  plays. The bars follow the bass, mids and treble of what's playing, and both
+  bars and player take their tint from the album cover. The Home tab has the full player with seek bar, shuffle, previous,
   play/pause, next and repeat. This works with any MPRIS player (Spotify,
   Firefox, Chromium, Rhythmbox, VLC and most others).
 - **Timer:** the Timer tab has 1–25 minute presets. While it runs, the

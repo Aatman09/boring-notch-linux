@@ -81,6 +81,10 @@ class LiveMediaView extends ClosedView {
     setAnimating(animating, followAudio) {
         this._visualizer.set_playing(animating, followAudio);
     }
+
+    setColor(rgb) {
+        this._visualizer.setColor(rgb);
+    }
 });
 
 /** InlineHUD: the volume or brightness icon, then the level bar. */

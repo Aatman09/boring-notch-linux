@@ -293,6 +293,19 @@ class MediaPlayer extends St.BoxLayout {
         this._elapsed.text = formatTime(position);
         this._remaining.text = length > 0 ? `-${formatTime(length - position)}` : '';
     }
+
+    // The cover's colour tints the secondary text and the played part of
+    // the seek bar; null takes the stylesheet's colours back. The active
+    // fill is a style property of BarLevel, the class under the slider, so
+    // a plain inline style is enough.
+    setColor(rgb) {
+        const color = rgb ? `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})` : null;
+        for (const label of [this._artist, this._elapsed, this._remaining])
+            label.style = color ? `color: ${color};` : null;
+        this._slider.style = color
+            ? `-barlevel-active-background-color: ${color};`
+            : null;
+    }
 });
 
 /** What the notch shows when nothing is playing: the time and date. */
@@ -548,6 +561,10 @@ export const OpenView = GObject.registerClass({
 
     setUnread(unread) {
         this._header.setUnread(unread);
+    }
+
+    setColor(rgb) {
+        this._player.setColor(rgb);
     }
 
     showHud(icon, level, maxLevel) {

@@ -130,6 +130,8 @@ function musicPage(settings) {
         'Bars move with the bass, mids and treble of what is playing. Only the speaker output level is read, never the microphone, and nothing is recorded.');
     settings.bind('show-visualizer', follow, 'sensitive', Gio.SettingsBindFlags.GET);
     closed.add(follow);
+    closed.add(switchRow(settings, 'art-colors', 'Colours from the album art',
+        'Tint the bars and, in the notch, the artist text and the seek bar with the cover\'s average colour'));
     closed.add(spinRow(settings, 'media-linger-seconds', 'Keep showing after pause',
         'Seconds the music stays in the closed notch after pausing', [0, 10, 1]));
     page.add(closed);

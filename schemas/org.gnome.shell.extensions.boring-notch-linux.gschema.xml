@@ -91,6 +91,10 @@
       <default>true</default>
       <summary>Make the music bars follow what is playing, by reading the level of the sound output</summary>
     </key>
+    <key name="art-colors" type="b">
+      <default>true</default>
+      <summary>Take the colour of the bars, the player text and the seek bar from the album art</summary>
+    </key>
     <key name="gestures" type="b">
       <default>true</default>
       <summary>Gestures on the notch: swipe down to open, up to close, sideways to change track</summary>
