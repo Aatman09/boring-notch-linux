@@ -158,14 +158,25 @@ class BatterySneakView extends ClosedView {
         return false;
     }
 
-    update(battery) {
-        if (battery.charging)
-            this._status.text = 'Charging';
+    update(battery, levelMark = null) {
+        if (levelMark === 'full')
+            this._status.text = 'Fully charged';
+        else if (levelMark === 'critical')
+            this._status.text = 'Critical battery';
+        else if (levelMark)
+            this._status.text = 'Low battery';
         else
-            this._status.text = battery.pluggedIn ? 'Plugged in' : 'On battery';
+            this._status.text = battery.charging ? 'Charging'
+                : battery.pluggedIn ? 'Plugged in' : 'On battery';
         this._percent.text = `${battery.percentage}%`;
         this._icon.icon_name = battery.iconName;
-        if (battery.pluggedIn)
+        this._status.remove_style_class_name('bn-low');
+        this._status.remove_style_class_name('bn-full');
+        if (levelMark === 'full')
+            this._status.add_style_class_name('bn-full');
+        else if (levelMark)
+            this._status.add_style_class_name('bn-low');
+        else if (battery.pluggedIn)
             this._status.add_style_class_name('bn-charging');
         else
             this._status.remove_style_class_name('bn-charging');

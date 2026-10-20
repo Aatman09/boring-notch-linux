@@ -11,6 +11,7 @@ const DeviceIface = `
     <property name="IsPresent" type="b" access="read"/>
     <property name="Percentage" type="d" access="read"/>
     <property name="State" type="u" access="read"/>
+    <property name="WarningLevel" type="u" access="read"/>
     <property name="IconName" type="s" access="read"/>
   </interface>
 </node>`;
@@ -19,10 +20,14 @@ const DeviceProxy = Gio.DBusProxy.makeProxyWrapper(DeviceIface);
 
 const State = {CHARGING: 1, FULLY_CHARGED: 4, PENDING_CHARGE: 5};
 const PLUGGED_IN = [State.CHARGING, State.FULLY_CHARGED, State.PENDING_CHARGE];
+// UPower reports every level below "low" already at "discharging".
+const WARNING_LOW = 3;
 
 /**
- * Emits 'changed' on any battery update, and 'plugged' (with true or false)
- * when a charger is connected or removed.
+ * Emits 'changed' on any battery update, 'plugged' (with true or false)
+ * when a charger is connected or removed, 'warning' with the warning level
+ * when it rises to "low" or beyond, and 'full' when the display device
+ * finishes charging while a charger is connected.
  */
 export class BatteryMonitor extends EventEmitter {
     constructor() {
@@ -44,9 +49,20 @@ export class BatteryMonitor extends EventEmitter {
         }
 
         this._pluggedIn = this.pluggedIn;
+        this._lastState = this._proxy.State;
+        this._warningLevel = this.warningLevel;
         this._proxy.connectObject('g-properties-changed', () => {
             const pluggedIn = this.pluggedIn;
             this.emit('changed');
+            const level = this.warningLevel;
+            if (level >= WARNING_LOW && level > this._warningLevel)
+                this.emit('warning', level);
+            this._warningLevel = level;
+            const state = this._proxy.State;
+            if (this.present && pluggedIn &&
+                this._lastState === State.CHARGING && state === State.FULLY_CHARGED)
+                this.emit('full');
+            this._lastState = state;
             if (this.present && pluggedIn !== this._pluggedIn)
                 this.emit('plugged', pluggedIn);
             this._pluggedIn = pluggedIn;
@@ -68,6 +84,10 @@ export class BatteryMonitor extends EventEmitter {
 
     get pluggedIn() {
         return PLUGGED_IN.includes(this._proxy?.State);
+    }
+
+    get warningLevel() {
+        return this._proxy?.WarningLevel ?? 0;
     }
 
     get iconName() {

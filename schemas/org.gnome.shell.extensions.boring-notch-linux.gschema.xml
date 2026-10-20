@@ -18,6 +18,10 @@
       <default>true</default>
       <summary>Show a moon beside the clock and a peek while Do Not Disturb is on</summary>
     </key>
+    <key name="show-battery-warnings" type="b">
+      <default>true</default>
+      <summary>Warn when the battery is low or critical, and peek when it finishes charging</summary>
+    </key>
     <key name="open-on-hover" type="b">
       <default>true</default>
       <summary>Open the notch when the pointer rests on it</summary>

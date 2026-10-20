@@ -188,6 +188,8 @@ function peeksPage(settings) {
         'Peek when a device connects or disconnects, with its battery level when known'));
     awareness.add(switchRow(settings, 'show-dnd', 'Do Not Disturb',
         'Show a moon beside the clock while Do Not Disturb is on, and a peek when it changes. The switch in the header of the open notch always works.'));
+    awareness.add(switchRow(settings, 'show-battery-warnings', 'Low and full battery',
+        'Warn when the battery runs low or critical, and when it finishes charging'));
     page.add(group);
     page.add(awareness);
     return page;

@@ -41,6 +41,10 @@ const FALLBACK_PANEL_HEIGHT = 32;
 const CLOSE_DELAY_MS = 100;
 const HUD_TIMEOUT_MS = 1500;
 const BATTERY_TIMEOUT_MS = 2500;
+const BATTERY_LEVEL_TIMEOUT_MS = 4000;
+// gnome-settings-daemon posts its own battery notification when a warning
+// level is reached; one is not worth two for this long after ours.
+const BATTERY_NOTICE_WINDOW_MS = 2000;
 const BLUETOOTH_TIMEOUT_MS = 2500;
 const NOTIFICATION_TIMEOUT_MS = 4000;
 const DOWNLOAD_TIMEOUT_MS = 4000;
@@ -216,7 +220,11 @@ class Island extends St.Widget {
             'changed', () => this._syncMedia(),
             'track-changed', (_m, player) => this._onTrackChanged(player),
             this);
-        battery.connectObject('plugged', () => this._onPlugged(), this);
+        battery.connectObject(
+            'plugged', () => this._onPlugged(),
+            'warning', (_m, level) => this._onBatteryWarning(level),
+            'full', () => this._onBatteryFull(),
+            this);
         privacy.connectObject(
             'changed', (_p, state) => this._onPrivacyChanged(state),
             'started', (_p, kind, appName) => this._onPrivacyStarted(kind, appName),
@@ -375,6 +383,14 @@ class Island extends St.Widget {
         if (this._state === State.OPEN || !this.visible)
             return false;
 
+        // A gicon named after the battery is gnome-settings-daemon's own
+        // battery notice; drop it while our battery-level peek is on or has
+        // just ended, so low and full battery do not pop twice.
+        if (notification.gicon instanceof Gio.ThemedIcon &&
+            notification.gicon.icon_name.startsWith('battery') &&
+            GLib.get_monotonic_time() < (this._batteryNoticeUntil ?? 0))
+            return true;
+
         // GNOME posts one notification per screenshot and puts the image in
         // gicon itself; recordings come with an ordinary icon. Match on the
         // icon's type, never on the translated text.
@@ -430,6 +446,28 @@ class Island extends St.Widget {
             apply: () => this._batterySneak.update(this._battery),
             timeout: BATTERY_TIMEOUT_MS,
             key: 'battery',
+        });
+    }
+
+    _onBatteryWarning(level) {
+        this._showBatteryLevel(level >= 4 ? 'critical' : 'low');
+    }
+
+    _onBatteryFull() {
+        this._showBatteryLevel('full');
+    }
+
+    _showBatteryLevel(mark) {
+        if (!this._settings.get_boolean('show-battery-warnings') || this._state === State.OPEN)
+            return;
+        this._batteryNoticeUntil = GLib.get_monotonic_time() +
+            1000 * (BATTERY_LEVEL_TIMEOUT_MS + BATTERY_NOTICE_WINDOW_MS);
+        this._showPeek({
+            view: this._batterySneak,
+            apply: () => this._batterySneak.update(this._battery, mark),
+            timeout: BATTERY_LEVEL_TIMEOUT_MS,
+            priority: mark === 'critical' ? Priority.NOTIFICATION : Priority.STATUS,
+            key: 'battery-level',
         });
     }
 

@@ -86,6 +86,14 @@
   color: #30d158;
 }
 
+.bn-battery-status.bn-low {
+  color: #ff453a;
+}
+
+.bn-battery-status.bn-full {
+  color: #30d158;
+}
+
 .bn-battery-percent {
   font-size: 12px;
   font-feature-settings: "tnum";
