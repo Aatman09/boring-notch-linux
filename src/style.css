@@ -169,6 +169,10 @@
   font-weight: 500;
 }
 
+.bn-bluetooth-peek .bn-icon-text-title {
+  max-width: 140px;
+}
+
 .bn-header-battery {
   spacing: 4px;
   font-size: 12px;

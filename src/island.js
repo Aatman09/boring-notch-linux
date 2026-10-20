@@ -41,6 +41,7 @@ const FALLBACK_PANEL_HEIGHT = 32;
 const CLOSE_DELAY_MS = 100;
 const HUD_TIMEOUT_MS = 1500;
 const BATTERY_TIMEOUT_MS = 2500;
+const BLUETOOTH_TIMEOUT_MS = 2500;
 const NOTIFICATION_TIMEOUT_MS = 4000;
 const DOWNLOAD_TIMEOUT_MS = 4000;
 const TIMER_DONE_TIMEOUT_MS = 6000;
@@ -73,7 +74,7 @@ const VOLUME_STEP = 0.05;
 
 export const Island = GObject.registerClass(
 class Island extends St.Widget {
-    _init({settings, zoom, media, battery, timer, downloads, audio, privacy, artCache, openPreferences}) {
+    _init({settings, zoom, media, battery, timer, downloads, audio, privacy, bluetooth, artCache, openPreferences}) {
         super._init({
             name: 'boring-notch',
             reactive: true,
@@ -88,6 +89,7 @@ class Island extends St.Widget {
         this._timer = timer;
         this._downloads = downloads;
         this._privacy = privacy;
+        this._bluetooth = bluetooth;
         this._artCache = artCache;
         this._state = State.CLOSED;
         this._tab = 'home';
@@ -149,10 +151,11 @@ class Island extends St.Widget {
         this._messageSneak = new IconTextView('bn-message-sneak', 150, {peek: true});
         this._privacyPeek = new IconTextView('bn-privacy-peek', 145, {peek: true});
         this._screenshotPeek = new ScreenshotPeekView();
+        this._bluetoothPeek = new IconTextView('bn-bluetooth-peek', 130, {peek: true});
         this._musicPeek = new MusicPeekView();
         [this._liveMedia, this._hud, this._batterySneak, this._timerLive,
             this._downloadLive, this._messageSneak, this._privacyPeek,
-            this._screenshotPeek, this._musicPeek]
+            this._screenshotPeek, this._bluetoothPeek, this._musicPeek]
             .forEach(v => this._closedLayer.add_child(v));
         this._closedView = null;
 
@@ -203,6 +206,10 @@ class Island extends St.Widget {
         privacy.connectObject(
             'changed', (_p, state) => this._onPrivacyChanged(state),
             'started', (_p, kind, appName) => this._onPrivacyStarted(kind, appName),
+            this);
+        bluetooth.connectObject(
+            'connected', (_b, device) => this._onBluetooth(device, true),
+            'disconnected', (_b, device) => this._onBluetooth(device, false),
             this);
         timer.connectObject(
             'changed', () => this._syncTimer(),
@@ -449,6 +456,23 @@ class Island extends St.Widget {
             },
             priority: Priority.STATUS,
             key: 'privacy',
+        });
+    }
+
+    _onBluetooth(device, connected) {
+        if (!this._settings.get_boolean('show-bluetooth') || this._state === State.OPEN)
+            return;
+        this._showPeek({
+            view: this._bluetoothPeek,
+            apply: () => this._bluetoothPeek.update({
+                icon: device.icon,
+                title: device.alias,
+                body: device.battery !== null ? `${device.battery}%`
+                    : connected ? 'Connected' : 'Disconnected',
+            }),
+            timeout: BLUETOOTH_TIMEOUT_MS,
+            priority: Priority.STATUS,
+            key: 'bluetooth',
         });
     }
 

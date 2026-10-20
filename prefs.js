@@ -184,6 +184,8 @@ function peeksPage(settings) {
         'Dots beside the clock and a peek naming the app. It reads which apps use the microphone and camera but never records anything.'));
     awareness.add(switchRow(settings, 'screenshot-peek', 'Screenshots',
         'Show the screenshot instead of the notification text for a moment; click it to open the file'));
+    awareness.add(switchRow(settings, 'show-bluetooth', 'Bluetooth devices',
+        'Peek when a device connects or disconnects, with its battery level when known'));
     page.add(group);
     page.add(awareness);
     return page;

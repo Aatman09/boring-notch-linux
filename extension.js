@@ -8,6 +8,7 @@ import {Urgency} from 'resource:///org/gnome/shell/ui/messageTray.js';
 import {ArtCache} from './src/art.js';
 import {AudioLevels, IGNORED_RECORDING_APPS} from './src/audio.js';
 import {BatteryMonitor} from './src/battery.js';
+import {BluetoothMonitor} from './src/bluetooth.js';
 import {DownloadWatcher} from './src/downloads.js';
 import {Island} from './src/island.js';
 import {MediaManager} from './src/media.js';
@@ -83,6 +84,7 @@ export default class BoringNotchExtension extends Extension {
         this._artCache = new ArtCache();
         this._audio = new AudioLevels();
         this._privacy = new PrivacyMonitor();
+        this._bluetooth = new BluetoothMonitor();
 
         this._island = new Island({
             settings: this._settings,
@@ -93,6 +95,7 @@ export default class BoringNotchExtension extends Extension {
             downloads: this._downloads,
             audio: this._audio,
             privacy: this._privacy,
+            bluetooth: this._bluetooth,
             artCache: this._artCache,
             openPreferences: () => this.openPreferences(),
         });
@@ -191,6 +194,8 @@ export default class BoringNotchExtension extends Extension {
 
         this._privacy.destroy();
         this._privacy = null;
+        this._bluetooth.destroy();
+        this._bluetooth = null;
         this._audio.destroy();
         this._audio = null;
         this._artCache.destroy();

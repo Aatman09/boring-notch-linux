@@ -45,6 +45,8 @@ the pointer on it.
   apps are using them; nothing is recorded.
 - **Screenshots:** the screenshot itself, as a large thumbnail, instead of a
   text notification. Click it to open the file.
+- **Bluetooth:** a peek when a device connects or disconnects, with its
+  battery level when the device reports one.
 - **System peeks:** a moon beside the clock while Do Not Disturb is on, a
   screenshot thumbnail when you take one, a peek when a Bluetooth device
   connects or disconnects, and Caps Lock and keyboard layout changes.

@@ -10,6 +10,10 @@
       <default>true</default>
       <summary>Show a thumbnail when a screenshot is taken</summary>
     </key>
+    <key name="show-bluetooth" type="b">
+      <default>true</default>
+      <summary>Peek when a Bluetooth device connects or disconnects, with its battery level when known</summary>
+    </key>
     <key name="open-on-hover" type="b">
       <default>true</default>
       <summary>Open the notch when the pointer rests on it</summary>
