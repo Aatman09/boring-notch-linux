@@ -27,8 +27,8 @@ the pointer on it.
 - **Notification peeks:** new notifications slide out of the notch instead of
   showing GNOME banners. Click one to open it. Critical notifications still
   use the GNOME banner.
-- **Music:** album art and animated bars in the closed notch while something
-  plays. The Home tab has the full player with seek bar, shuffle, previous,
+- **Music:** album art and four bars in the closed notch while something
+  plays. The bars follow the bass, mids and treble of what's playing. The Home tab has the full player with seek bar, shuffle, previous,
   play/pause, next and repeat. This works with any MPRIS player (Spotify,
   Firefox, Chromium, Rhythmbox, VLC and most others).
 - **Timer:** the Timer tab has 1–25 minute presets. While it runs, the
@@ -50,15 +50,30 @@ Measured in GNOME Shell's CPU use with the notch closed:
 |---|---|
 | Extension off | 0.3% |
 | Idle or paused | 0.6% |
-| Music playing, visualizer on | 1.2% |
+| Music playing, bars following the audio | 1.8%, plus 1.5% for the capture process |
+| Music playing, bars moving on their own | 1.2% |
 | Open, music playing | 1.0% |
 
-Memory use is under 1 MB. Nothing polls when idle: the notch reacts to D-Bus
+Memory use is under 1 MB, plus 15 MB for the capture process while the bars
+follow the audio. Nothing polls when idle: the notch reacts to D-Bus
 signals and file events, and only redraws while it animates.
 
 The notch size, corner radii and spring physics are copied from boring.notch:
 640×190 when open, a response of 0.42 s and damping of 0.8 when opening, and
 0.45 s and 1.0 when closing.
+
+## Privacy
+
+To make the bars follow the music, the extension runs `gst-launch-1.0` to
+measure the loudness of what your speakers are playing. It reads the speaker
+output only, never the microphone, and nothing is stored or sent anywhere.
+It runs only while music plays and the bars are on screen.
+
+GNOME shows its microphone indicator whenever any app records audio, and
+this counts as recording, so the extension leaves just this one stream out
+of the indicator. Any other app that records still turns the indicator on.
+You can switch it off with **Follow the music** in the settings; the bars
+then move on their own and nothing is captured.
 
 ## Install
 

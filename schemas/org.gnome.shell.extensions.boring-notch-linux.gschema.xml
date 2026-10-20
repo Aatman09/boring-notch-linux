@@ -50,5 +50,9 @@
       <default>true</default>
       <summary>Animate the music bars in the closed notch while something plays</summary>
     </key>
+    <key name="visualizer-follows-audio" type="b">
+      <default>true</default>
+      <summary>Make the music bars follow what is playing, by reading the level of the sound output</summary>
+    </key>
   </schema>
 </schemalist>

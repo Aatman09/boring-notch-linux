@@ -53,7 +53,7 @@ const State = {CLOSED: 'closed', OPEN: 'open'};
 
 export const Island = GObject.registerClass(
 class Island extends St.Widget {
-    _init({settings, zoom, media, battery, timer, downloads, artCache, openPreferences}) {
+    _init({settings, zoom, media, battery, timer, downloads, audio, artCache, openPreferences}) {
         super._init({
             name: 'boring-notch',
             reactive: true,
@@ -103,7 +103,7 @@ class Island extends St.Widget {
         this._wallClock = new GnomeDesktop.WallClock();
         this._wallClock.bind_property('clock', this._clockLabel, 'text', GObject.BindingFlags.SYNC_CREATE);
 
-        this._liveMedia = new LiveMediaView();
+        this._liveMedia = new LiveMediaView(audio);
         this._hud = new InlineHudView();
         this._batterySneak = new BatterySneakView();
         this._timerLive = new IconTextView('bn-timer-live', 52);
@@ -151,7 +151,8 @@ class Island extends St.Widget {
         settings.connectObject(
             'changed::closed-width', () => this._relayout(),
             'changed::clock-mode', () => this._syncClock(),
-            'changed::show-visualizer', () => this._syncMedia(),
+            'changed::show-visualizer', () => this._syncVisualizer(),
+            'changed::visualizer-follows-audio', () => this._syncVisualizer(),
             'changed::show-downloads', () => this._relayout(),
             this);
         zoom.connectObject('changed', () => this._relayout(true), this);
@@ -220,6 +221,7 @@ class Island extends St.Widget {
             this._fade(this._closedLayer, false);
             this._showOpenView(true);
             this._openView.startTicking();
+            this._syncVisualizer();
             this._springs.forEach(s => s.configure(OPEN_SPRING));
         } else {
             this._springs.forEach(s => s.configure(RESIZE_SPRING));
@@ -236,6 +238,7 @@ class Island extends St.Widget {
         this._showOpenView(false);
         this._fade(this._closedLayer, true, FADE_MS);
         this._openView.stopTicking();
+        this._syncVisualizer();
         this._springs.forEach(s => s.configure(CLOSE_SPRING));
         this._relayout();
     }
@@ -384,7 +387,8 @@ class Island extends St.Widget {
         }
 
         this._syncArt(player);
-        this._liveMedia.update(player, this._artUri, this._settings.get_boolean('show-visualizer'));
+        this._liveMedia.update(this._artUri);
+        this._syncVisualizer();
         this._openView.update(player, this._artUri);
         this._relayout();
     }
@@ -400,9 +404,8 @@ class Island extends St.Widget {
             if (this._artUrl !== url || !this._artCache)
                 return;
             this._artUri = uri;
-            const current = this._media.activePlayer;
-            this._liveMedia.update(current, uri, this._settings.get_boolean('show-visualizer'));
-            this._openView.update(current, uri);
+            this._liveMedia.update(uri);
+            this._openView.update(this._media.activePlayer, uri);
         });
     }
 
@@ -514,6 +517,17 @@ class Island extends St.Widget {
         if (view)
             this._fade(view, true, FADE_MS / 2);
         this._closedView = view;
+        this._syncVisualizer();
+    }
+
+    // The bars, and the audio capture behind them, only run while they
+    // can be seen.
+    _syncVisualizer() {
+        const visible = this._state === State.CLOSED && this._closedView === this._liveMedia;
+        const playing = !!this._media.activePlayer?.playing;
+        this._liveMedia.setAnimating(
+            visible && playing && this._settings.get_boolean('show-visualizer'),
+            this._settings.get_boolean('visualizer-follows-audio'));
     }
 
     _showOpenView(show) {

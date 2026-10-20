@@ -50,11 +50,11 @@ class ClosedView extends St.BoxLayout {
 /** MusicLiveActivity: album art on the left, visualizer on the right. */
 export const LiveMediaView = GObject.registerClass(
 class LiveMediaView extends ClosedView {
-    _init() {
+    _init(audio) {
         super._init('bn-live-media');
         this._art = new AlbumArt('bn-art-small');
         this.left.add_child(this._art);
-        this._visualizer = new Visualizer();
+        this._visualizer = new Visualizer(audio);
         this.right.add_child(this._visualizer);
     }
 
@@ -62,9 +62,12 @@ class LiveMediaView extends ClosedView {
         return notchHeight + 2;
     }
 
-    update(player, artUri, animate) {
+    update(artUri) {
         this._art.set_art(artUri);
-        this._visualizer.set_playing(animate && !!player?.playing);
+    }
+
+    setAnimating(animating, followAudio) {
+        this._visualizer.set_playing(animating, followAudio);
     }
 });
 

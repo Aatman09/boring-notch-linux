@@ -3,6 +3,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Urgency} from 'resource:///org/gnome/shell/ui/messageTray.js';
 
 import {ArtCache} from './src/art.js';
+import {AudioLevels, VISUALIZER_APP_ID} from './src/audio.js';
 import {BatteryMonitor} from './src/battery.js';
 import {DownloadWatcher} from './src/downloads.js';
 import {Island} from './src/island.js';
@@ -76,6 +77,7 @@ export default class BoringNotchExtension extends Extension {
         this._timer = new Timer();
         this._downloads = new DownloadWatcher();
         this._artCache = new ArtCache();
+        this._audio = new AudioLevels();
 
         this._island = new Island({
             settings: this._settings,
@@ -84,6 +86,7 @@ export default class BoringNotchExtension extends Extension {
             battery: this._battery,
             timer: this._timer,
             downloads: this._downloads,
+            audio: this._audio,
             artCache: this._artCache,
             openPreferences: () => this.openPreferences(),
         });
@@ -128,6 +131,28 @@ export default class BoringNotchExtension extends Extension {
                 original.call(this);
             });
 
+        // GNOME shows the microphone indicator while any app records audio,
+        // and the visualizer's stream counts as recording even though it
+        // only reads the speaker output. Leave just that stream out, the way
+        // GNOME already leaves out the sound settings' level meters.
+        const input = Main.panel.statusArea.quickSettings?._volumeInput?._input;
+        if (input) {
+            this._injections.overrideMethod(input, '_maybeShowInput', () =>
+                function () {
+                    const skippedApps = [
+                        'org.gnome.VolumeControl',
+                        'org.PulseAudio.pavucontrol',
+                        VISUALIZER_APP_ID,
+                    ];
+                    this._showInput = !!this._stream &&
+                        this._control.get_source_outputs().some(
+                            output => !skippedApps.includes(output.get_application_id()));
+                    this._sync();
+                });
+            input._maybeShowInput();
+            this._micInput = input;
+        }
+
         // Super+V, and clicking where the clock was, open the Today tab.
         this._injections.overrideMethod(Main.panel, 'toggleCalendar', original =>
             function () {
@@ -141,6 +166,8 @@ export default class BoringNotchExtension extends Extension {
     disable() {
         this._injections.clear();
         this._injections = null;
+        this._micInput?._maybeShowInput();
+        this._micInput = null;
 
         this._clockMover.destroy();
         this._clockMover = null;
@@ -149,6 +176,8 @@ export default class BoringNotchExtension extends Extension {
         this._island.destroy();
         this._island = null;
 
+        this._audio.destroy();
+        this._audio = null;
         this._artCache.destroy();
         this._artCache = null;
         this._downloads.destroy();

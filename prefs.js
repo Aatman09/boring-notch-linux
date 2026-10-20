@@ -67,6 +67,10 @@ export default class BoringNotchPreferences extends ExtensionPreferences {
         const activities = new Adw.PreferencesGroup({title: 'Live activities'});
         activities.add(switchRow(settings, 'show-visualizer', 'Music visualizer',
             'Animate the bars beside the album art while music plays'));
+        const follow = switchRow(settings, 'visualizer-follows-audio', 'Follow the music',
+            'Bars move with the bass, mids and treble of what is playing. Only the speaker output level is read, never the microphone, and nothing is recorded.');
+        settings.bind('show-visualizer', follow, 'sensitive', Gio.SettingsBindFlags.GET);
+        activities.add(follow);
         activities.add(switchRow(settings, 'replace-osd', 'Volume and brightness',
             'Show changes in the notch instead of the GNOME popup'));
         activities.add(switchRow(settings, 'notifications-in-notch', 'Notifications',

@@ -33,51 +33,93 @@ class AlbumArt extends St.Bin {
     }
 });
 
-// Bars move in steps rather than eased transitions: easing makes the shell
-// redraw every frame while music plays, which cost about 10% of a CPU core.
-// At this rate a redraw happens only a few times a second.
+// Without real audio, bars move in steps rather than eased transitions:
+// easing makes the shell redraw every frame while music plays, which cost
+// about 10% of a CPU core. At this rate a redraw happens only a few times a
+// second.
 const VISUALIZER_STEP_MS = 120;
+// How far a bar can fall per audio update. Bars jump up to a new level at
+// once and fall back slowly, like a level meter.
+const AUDIO_DECAY = 0.06;
+const RESTING_SCALE = 0.25;
 
 /**
- * The bouncing bars from AudioSpectrumView. Like boring.notch these move
- * randomly while music plays rather than following the audio.
+ * The bouncing bars from AudioSpectrumView: bass to treble when following
+ * the audio, otherwise moving on their own like boring.notch's.
  */
 export const Visualizer = GObject.registerClass(
 class Visualizer extends St.BoxLayout {
-    _init() {
+    _init(audio) {
         super._init({
             style_class: 'bn-visualizer',
             x_align: Clutter.ActorAlign.CENTER,
             y_align: Clutter.ActorAlign.CENTER,
         });
+        this._audio = audio;
+        this._audioFailed = false;
+        this._mode = null;
         this._bars = [];
         for (let i = 0; i < 4; i++) {
             const bar = new St.Widget({
                 style_class: 'bn-visualizer-bar',
                 pivot_point: new Graphene.Point({x: 0.5, y: 0.5}),
-                scale_y: 0.25,
+                scale_y: RESTING_SCALE,
             });
-            bar._target = 0.25;
+            bar._target = RESTING_SCALE;
+            bar._level = 0;
             this.add_child(bar);
             this._bars.push(bar);
         }
-        this.connect('destroy', () => this.set_playing(false));
+        this.connect('destroy', () => this._setMode(null));
     }
 
-    set_playing(playing) {
-        if (playing === !!this._timeoutId)
+    set_playing(playing, followAudio = false) {
+        if (!playing)
+            this._audioFailed = false;
+        const useAudio = followAudio && this._audio && !this._audioFailed;
+        this._setMode(playing ? useAudio ? 'audio' : 'random' : null);
+    }
+
+    _setMode(mode) {
+        if (mode === this._mode)
             return;
 
-        if (playing) {
+        if (this._mode === 'audio') {
+            this._audio.disconnectObject(this);
+            this._audio.stop();
+        } else if (this._mode === 'random') {
+            GLib.source_remove(this._timeoutId);
+            this._timeoutId = 0;
+        }
+        this._mode = mode;
+
+        if (mode === 'audio') {
+            this._audio.connectObject(
+                'levels', (_a, levels) => this._showLevels(levels),
+                'failed', () => {
+                    this._audioFailed = true;
+                    this._setMode('random');
+                },
+                this);
+            this._audio.start();
+        } else if (mode === 'random') {
             this._timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, VISUALIZER_STEP_MS, () => {
                 this._step();
                 return GLib.SOURCE_CONTINUE;
             });
         } else {
-            GLib.source_remove(this._timeoutId);
-            this._timeoutId = 0;
-            this._bars.forEach(bar => (bar.scale_y = 0.25));
+            this._bars.forEach(bar => {
+                bar.scale_y = RESTING_SCALE;
+                bar._level = 0;
+            });
         }
+    }
+
+    _showLevels(levels) {
+        this._bars.forEach((bar, i) => {
+            bar._level = Math.max(levels[i] ?? 0, bar._level - AUDIO_DECAY);
+            bar.scale_y = 0.2 + 0.8 * bar._level;
+        });
     }
 
     // Each bar heads halfway to its target every step and picks a new
