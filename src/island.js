@@ -541,8 +541,10 @@ class Island extends St.Widget {
             apply: () => this._bluetoothPeek.update({
                 icon: device.icon,
                 title: device.alias,
-                body: device.battery !== null ? `${device.battery}%`
-                    : connected ? 'Connected' : 'Disconnected',
+                // No matter how much charge a leaving device still had, the
+                // level it had is not what matters about a disconnect.
+                body: !connected ? 'Disconnected'
+                    : device.battery !== null ? `${device.battery}%` : 'Connected',
             }),
             timeout: BLUETOOTH_TIMEOUT_MS,
             priority: Priority.STATUS,
