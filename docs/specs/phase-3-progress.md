@@ -15,8 +15,18 @@ Branch `phase-3-cleanup-and-look`. Nothing pushed.
 | C4 accent colour | done | see below |
 | C5 row-style HUD peek | done | `7122479`; see below |
 | C6 draggable HUD bar | done | see below |
-| Today tab multi-event test | todo | 100% and 125% |
-| 125% sweep, evidence, report | todo | |
+| Today tab multi-event test | done | 100% and 125%, no defect; see the report |
+| 125% sweep, evidence, report | done | `docs/specs/phase-3-evidence/` (18 PNGs), `phase-3-report.md` |
+| CPU (closed, open, glow, recording) | done | closed idle 1.7% vs 0.17% with the extension off: **above the 0.3 to 0.6% target, not explained** |
+| Disable and enable | done | one notch, log count 0, open and closed |
+
+## Verification pass
+
+Run by the verification agent on `phase-3-cleanup-and-look` (detached at
+`c58f8ec` in its worktree; the verification commits are on a branch of its own).
+No `src/` change was needed. Open before merge: the closed-notch idle CPU (see
+the report, "Still open" 1), and the art-glow edge looks like a hard box at 125%
+(report, "Still open" 2).
 
 ## C4 notes
 
