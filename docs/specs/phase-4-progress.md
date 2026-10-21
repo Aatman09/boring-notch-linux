@@ -6,8 +6,8 @@ Branch `phase-4-extras`, from the phase 3 tip (`c58f8ec`). Nothing pushed.
 |---|---|---|
 | 1. Stopwatch and Pomodoro on the Timer tab (O-F14) | done | `6362f5b` |
 | 2. Preferred and ignored players (G-1.9) | done | `37c1e43` |
-| 3. Buttons on notification peeks (O-F24) | done | the commit after `37c1e43` (see `git log`) |
-| Report | todo | `docs/specs/phase-4-report.md` |
+| 3. Buttons on notification peeks (O-F24) | done | `8c409ab` (its message was amended before the next commit) |
+| Report | done | `docs/specs/phase-4-report.md`, evidence in `docs/specs/phase-4-evidence/` |
 
 ## Item 1 notes
 
