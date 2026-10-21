@@ -111,6 +111,9 @@ class Island extends St.Widget {
         this._peeks = [];
         this._sneak = null;
         this._sneakAction = null;
+        // True while hover must wait for the pointer to leave after a press
+        // on a peek's button.
+        this._hoverHeld = false;
         // gnome-settings-daemon's battery notice is dropped for this long
         // after one of our battery-level peeks; zero means never drop.
         this._batteryNoticeUntil = 0;
@@ -1030,10 +1033,13 @@ class Island extends St.Widget {
 
     _onHoverChanged() {
         this._clearTimeout('hover');
+        // After a press on a peek's button, hover waits for the pointer to
+        // leave before it can open the notch again.
+        this._hoverHeld = this.hover && this._hoverHeld;
         if (this.hover)
             this._clearTimeout('keyboard');
 
-        if (this.hover && this._state === State.CLOSED) {
+        if (this.hover && !this._hoverHeld && this._state === State.CLOSED) {
             if (this._settings.get_boolean('open-on-hover'))
                 this._setTimeout('hover', this._settings.get_int('hover-delay'), () => this.open());
         } else if (!this.hover && this._state === State.OPEN) {
@@ -1242,8 +1248,13 @@ class Island extends St.Widget {
             this._sneak.isBar(event.get_source()))
             return Clutter.EVENT_PROPAGATE;
         // A notification's button takes its own click, not the peek's action.
-        if (this._sneak === this._messageSneak && this._messageSneak.pointerOnButton)
+        // The press is the dealing with the peek, so hover must not open
+        // the notch afterwards, until the pointer has left and come back.
+        if (this._sneak === this._messageSneak && this._messageSneak.pointerOnButton) {
+            this._hoverHeld = true;
+            this._clearTimeout('hover');
             return Clutter.EVENT_PROPAGATE;
+        }
         if (this._sneakAction) {
             const action = this._sneakAction;
             this._endSneak();
