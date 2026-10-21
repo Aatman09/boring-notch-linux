@@ -352,9 +352,15 @@ export class MediaManager extends EventEmitter {
         this.emit('changed');
     }
 
+    // What identifies the track the active player is playing, or null.
+    _trackKey() {
+        const player = this.activePlayer;
+        return player?.playing ? `${player.busName}\n${player.title}\n${player.artists}` : null;
+    }
+
     _checkTrack() {
         const player = this.activePlayer;
-        const key = player?.playing ? `${player.busName}\n${player.title}\n${player.artists}` : null;
+        const key = this._trackKey();
         if (key === this._playingKey)
             return;
         this._playingKey = key;
@@ -375,7 +381,10 @@ export class MediaManager extends EventEmitter {
 
     _onSelectionChanged() {
         this.emit('changed');
-        this._checkTrack();
+        // A selection change is not a track change: what the player the
+        // selection points at is already playing must not surface as a
+        // fresh track.
+        this._playingKey = this._trackKey();
     }
 
     get activePlayer() {
