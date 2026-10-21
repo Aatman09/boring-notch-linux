@@ -10,6 +10,7 @@ import * as BarLevel from 'resource:///org/gnome/shell/ui/barLevel.js';
 import * as Calendar from 'resource:///org/gnome/shell/ui/calendar.js';
 import * as Slider from 'resource:///org/gnome/shell/ui/slider.js';
 
+import {BatteryPanel} from './batteryPanel.js';
 import {AlbumArt, MarqueeLabel, formatTime} from './widgets.js';
 
 const formatSeconds = s => formatTime(s * GLib.USEC_PER_SEC);
@@ -49,9 +50,12 @@ function iconButton(iconName, styleClass, callback) {
 
 /** BoringHeader: tabs on the left, settings and battery on the right. */
 const Header = GObject.registerClass({
-    Signals: {'tab-selected': {param_types: [GObject.TYPE_STRING]}},
+    Signals: {
+        'tab-selected': {param_types: [GObject.TYPE_STRING]},
+        'battery-clicked': {},
+    },
 }, class Header extends St.BoxLayout {
-    _init(battery, dndSettings, openPreferences) {
+    _init(battery, dndSettings, openPreferences, settings) {
         super._init({style_class: 'bn-header', x_expand: true});
         this._battery = battery;
 
@@ -101,7 +105,15 @@ const Header = GObject.registerClass({
         this._batteryIcon = new St.Icon({style_class: 'bn-header-battery-icon'});
         this._batteryBox.add_child(this._batteryLabel);
         this._batteryBox.add_child(this._batteryIcon);
-        this.add_child(this._batteryBox);
+        // A click opens the battery details, when the setting allows it.
+        this._batteryButton = new St.Button({
+            style_class: 'bn-header-battery-button',
+            can_focus: true,
+            child: this._batteryBox,
+        });
+        this._batteryButton.connect('clicked', () => this.emit('battery-clicked'));
+        settings.bind('battery-details', this._batteryButton, 'reactive', Gio.SettingsBindFlags.GET);
+        this.add_child(this._batteryButton);
 
         battery.connectObject('changed', () => this._syncBattery(), this);
         this._syncBattery();
@@ -119,7 +131,7 @@ const Header = GObject.registerClass({
         this._hudBar.value = Math.max(0, Math.min(level, max));
         this._hud.show();
         this._gear.hide();
-        this._batteryBox.hide();
+        this._batteryButton.hide();
         this._clearHudTimeout();
         this._hudTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, HEADER_HUD_MS, () => {
             this._hudTimeoutId = 0;
@@ -151,7 +163,7 @@ const Header = GObject.registerClass({
     }
 
     _syncBattery() {
-        this._batteryBox.visible = this._battery.present && !this._hud.visible;
+        this._batteryButton.visible = this._battery.present && !this._hud.visible;
         this._batteryLabel.text = `${this._battery.percentage}%`;
         this._batteryIcon.icon_name = this._battery.iconName;
     }
@@ -592,8 +604,9 @@ export const OpenView = GObject.registerClass({
     _init({settings, battery, timer, dndSettings, openPreferences}) {
         super._init({style_class: 'bn-open', opacity: 0});
 
-        this._header = new Header(battery, dndSettings, openPreferences);
+        this._header = new Header(battery, dndSettings, openPreferences, settings);
         this._header.connect('tab-selected', (_h, id) => this.emit('tab-selected', id));
+        this._header.connect('battery-clicked', () => this._toggleBatteryPanel());
         this.add_child(this._header);
 
         this._player = new MediaPlayer(settings);
@@ -604,6 +617,8 @@ export const OpenView = GObject.registerClass({
         this._today = new TodayView();
         this._pages = {home, today: this._today, timer: new TimerView(timer)};
         Object.values(this._pages).forEach(page => this.add_child(page));
+        this._batteryPanel = new BatteryPanel(battery);
+        this.add_child(this._batteryPanel);
 
         this._sizes = null;
         this.update(null, null);
@@ -617,6 +632,7 @@ export const OpenView = GObject.registerClass({
             page.translation_y = pageId === id ? 0 : PARKED_Y;
         this._header.setActiveTab(id);
         this._layoutHeader();
+        this._batteryPanel.hide();
         // Titles only scroll while their page is in view.
         this._player.setScrolling(id === 'home');
         if (id === 'today')
@@ -646,6 +662,7 @@ export const OpenView = GObject.registerClass({
             page.set_size(width, Math.max(0, height - headerHeight));
         }
         this._layoutHeader();
+        this._layoutBatteryPanel();
     }
 
     _layoutHeader() {
@@ -654,6 +671,28 @@ export const OpenView = GObject.registerClass({
         const [width] = this._sizes[this._tab];
         this._header.set_position(0, 0);
         this._header.set_size(width, this._headerHeight);
+    }
+
+    // The battery panel covers the page under the header, as the page does.
+    _layoutBatteryPanel() {
+        if (!this._sizes)
+            return;
+        const [width, height] = this._sizes[this._tab];
+        this._batteryPanel.set_position(0, this._headerHeight);
+        this._batteryPanel.set_size(width, Math.max(0, height - this._headerHeight));
+    }
+
+    _toggleBatteryPanel() {
+        if (this._batteryPanel.visible) {
+            this._batteryPanel.hide();
+        } else {
+            this._layoutBatteryPanel();
+            this._batteryPanel.open();
+        }
+    }
+
+    closeBatteryPanel() {
+        this._batteryPanel.hide();
     }
 
     get busy() {

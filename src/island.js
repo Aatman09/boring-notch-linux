@@ -276,6 +276,7 @@ class Island extends St.Widget {
             'plugged', () => this._onPlugged(),
             'warning', (_m, level) => this._onBatteryWarning(level),
             'full', () => this._onBatteryFull(),
+            'power-saver', () => this._onPowerSaver(),
             this);
         privacy.connectObject(
             'changed', (_p, state) => this._onPrivacyChanged(state),
@@ -385,6 +386,7 @@ class Island extends St.Widget {
             this._tab = 'home';
 
         this._showOpenView(false);
+        this._openView.closeBatteryPanel();
         this._fade(this._closedLayer, true, FADE_MS);
         this._openView.stopTicking();
         this._syncVisualizer();
@@ -528,6 +530,17 @@ class Island extends St.Widget {
 
     _onBatteryFull() {
         this._showBatteryLevel('full');
+    }
+
+    _onPowerSaver() {
+        if (!this._settings.get_boolean('power-saver-peek') || this._state === State.OPEN)
+            return;
+        this._showPeek({
+            view: this._batterySneak,
+            apply: () => this._batterySneak.update(this._battery, 'saver'),
+            timeout: BATTERY_TIMEOUT_MS,
+            key: 'battery-saver',
+        });
     }
 
     _showBatteryLevel(mark) {

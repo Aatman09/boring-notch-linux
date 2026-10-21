@@ -260,6 +260,18 @@ function peeksPage(settings) {
     return page;
 }
 
+function informationPage(settings) {
+    const page = new Adw.PreferencesPage({title: 'Information', icon_name: 'dialog-information-symbolic'});
+
+    const battery = new Adw.PreferencesGroup({title: 'Battery'});
+    battery.add(switchRow(settings, 'battery-details', 'Battery details',
+        'Click the battery in the header of the open notch to see its charge, time left, health and power saver state'));
+    battery.add(switchRow(settings, 'power-saver-peek', 'Power saver peek',
+        'Peek when the power profile changes to or from Power Saver'));
+    page.add(battery);
+    return page;
+}
+
 function aboutPage(metadata) {
     const page = new Adw.PreferencesPage({title: 'About', icon_name: 'help-about-symbolic'});
     const group = new Adw.PreferencesGroup({
@@ -281,6 +293,7 @@ export default class BoringNotchPreferences extends ExtensionPreferences {
         window.add(generalPage(settings));
         window.add(musicPage(settings));
         window.add(peeksPage(settings));
+        window.add(informationPage(settings));
         window.add(aboutPage(this.metadata));
     }
 }

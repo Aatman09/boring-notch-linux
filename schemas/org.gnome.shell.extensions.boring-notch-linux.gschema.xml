@@ -165,5 +165,13 @@
       <default>true</default>
       <summary>Show the number next to the level bar</summary>
     </key>
+    <key name="battery-details" type="b">
+      <default>true</default>
+      <summary>Open the battery details when the battery in the header of the open notch is clicked</summary>
+    </key>
+    <key name="power-saver-peek" type="b">
+      <default>true</default>
+      <summary>Peek when the power profile changes to or from Power Saver</summary>
+    </key>
   </schema>
 </schemalist>

@@ -45,7 +45,9 @@ the pointer on it.
   the volume or the screen brightness.
 - **Battery:** a peek when a charger is plugged in or removed, and the charge
   level in the header. Also warnings when the battery runs low or finishes
-  charging.
+  charging. Click the battery in the open notch's header for its status, time
+  to full or empty, health and energy rate, and whether Power Saver is on. A
+  peek says when the power profile changes to or from Power Saver.
 - **Privacy:** small dots beside the clock when the microphone, camera or
   screen sharing is in use, and a peek naming the app. It only reads which
   apps are using them; nothing is recorded.
