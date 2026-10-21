@@ -9,17 +9,14 @@ import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
-import {IconTextView, InlineHudView, LiveMediaView, MusicPeekView, RowHudView} from './closedViews.js';
+import {InlineHudView, LiveMediaView, MusicPeekView, RowHudView} from './closedViews.js';
+import {LiveActivities} from './liveActivities.js';
 import {NotchShape} from './notchShape.js';
 import {OpenView} from './openView.js';
 import {PeekQueue, Priority} from './peekQueue.js';
 import {Spring, SpringAnimator} from './spring.js';
 import {SystemPeeks} from './systemPeeks.js';
-import {UpcomingEvents} from './upcoming.js';
 import {VOLUME_STEP, getVolume, setBrightness, setVolume, volumeIcon} from './volume.js';
-import {formatTime} from './widgets.js';
-
-const formatSeconds = s => formatTime(s * GLib.USEC_PER_SEC);
 
 // Sizes and springs from boring.notch (sizing/matters.swift and
 // ContentView.swift), in logical pixels and seconds, before the size
@@ -43,12 +40,7 @@ const FALLBACK_PANEL_HEIGHT = 32;
 
 const CLOSE_DELAY_MS = 100;
 const HUD_TIMEOUT_MS = 1500;
-const TIMER_DONE_TIMEOUT_MS = 6000;
 const MUSIC_PEEK_TIMEOUT_MS = 3000;
-// Room for the elapsed time beside the recording dot.
-const RECORD_LIVE_SIDE = 52;
-// Room for "in 15 min" beside the calendar icon.
-const MEETING_LIVE_SIDE = 84;
 // A notch opened from the keyboard closes by itself unless the pointer
 // comes to it.
 const KEYBOARD_OPEN_MS = 4000;
@@ -79,18 +71,13 @@ class Island extends St.Widget {
             clip_to_allocation: true,
         });
 
-        const {media, timer, stopwatch, pomodoro, downloads, audio, privacy, recording} = sources;
+        const {media, audio, privacy} = sources;
         this._settings = settings;
         this._zoomSource = zoom;
         this._sources = sources;
         this._media = media;
         this._battery = sources.battery;
-        this._timer = timer;
-        this._stopwatch = stopwatch;
-        this._pomodoro = pomodoro;
-        this._downloads = downloads;
         this._keyboard = sources.keyboard;
-        this._recording = recording;
         this._audioRoute = sources.audioRoute;
         this._artCache = sources.artCache;
         this._artColor = sources.artColor;
@@ -103,8 +90,7 @@ class Island extends St.Widget {
             },
             onIdle: () => {
                 this._syncMusicPeekScroll();
-                // The timer view doubles as its own "done" peek; put it back.
-                this._syncTimer();
+                this._live.syncTimer();
                 this._relayout();
             },
             canContinue: () => this._state === State.CLOSED,
@@ -123,8 +109,6 @@ class Island extends St.Widget {
         this._artColorRgb = null;
         this._artColorTrack = null;
         this._timeouts = new Map();
-        this._recordTickId = 0;
-        this._recordStartUs = 0;
 
         // Children are placed by hand: the content keeps a fixed size and
         // is moved with a translation while the notch grows around it, so
@@ -190,17 +174,9 @@ class Island extends St.Widget {
         this._hudRow = new RowHudView(settings);
         for (const hud of [this._hud, this._hudRow])
             hud.onAdjust = (kind, level, maxLevel) => this._adjustHud(kind, level, maxLevel);
-        // The screen recording is the most urgent live activity: it hogs the
-        // notch over the timer, the downloads and the music.
-        this._recordLive = new IconTextView('bn-record-live', RECORD_LIVE_SIDE);
-        this._timerLive = new IconTextView('bn-timer-live', 52);
-        this._meetingLive = new IconTextView('bn-meeting-live', MEETING_LIVE_SIDE);
-        this._downloadLive = new IconTextView('bn-download-live', 52);
         this._musicPeek = new MusicPeekView();
         this._systemPeeks = new SystemPeeks({settings, sources, dndSettings: this._dndSettings, host: this});
-        [this._recordLive, this._liveMedia, this._hud, this._hudRow,
-            this._timerLive, this._meetingLive, this._downloadLive,
-            this._musicPeek, ...this._systemPeeks.views]
+        [this._liveMedia, this._hud, this._hudRow, this._musicPeek, ...this._systemPeeks.views]
             .forEach(v => this._closedLayer.add_child(v));
         // The layer fading out when the notch opens takes the shown view
         // with it; let that view go of what it holds once it is hidden.
@@ -210,9 +186,9 @@ class Island extends St.Widget {
         this._openView = new OpenView({
             settings,
             battery: this._battery,
-            timer,
-            stopwatch,
-            pomodoro,
+            timer: sources.timer,
+            stopwatch: sources.stopwatch,
+            pomodoro: sources.pomodoro,
             dndSettings: this._dndSettings,
             openPreferences: () => {
                 this.close();
@@ -222,6 +198,11 @@ class Island extends St.Widget {
         this._openView.connect('tab-selected', (_v, tab) => this.open(tab));
         this._openView.translation_y = PARKED_Y;
         this.add_child(this._openView);
+
+        // Made before the springs, so their first syncs do not lay out a
+        // half-built notch.
+        this._live = new LiveActivities({settings, sources, eventSource: this._openView.eventSource, host: this});
+        this._live.views.forEach(v => this._closedLayer.add_child(v));
 
         const r = RADII.closed;
         this._width = new Spring(settings.get_int('closed-width'));
@@ -244,11 +225,8 @@ class Island extends St.Widget {
             'changed::visualizer-follows-audio', () => this._syncVisualizer(),
             'changed::art-colors', () => this._syncArtColors(),
             'changed::scroll-titles', () => this._syncMusicPeekScroll(),
-            'changed::show-downloads', () => this._relayout(),
             'changed::show-privacy-indicators', () => this._syncPrivacyDots(),
             'changed::show-dnd', () => this._syncMoon(),
-            'changed::show-recording', () => this._onShowRecordingChanged(),
-            'changed::timer-modes', () => this._onTimerModesChanged(),
             this);
         zoom.connectObject('changed', () => this._relayout(true), this);
         this._clockLabel.connect('notify::text', () => this._relayout());
@@ -260,19 +238,6 @@ class Island extends St.Widget {
             this);
         privacy.connectObject('changed',
             (_p, state) => this._onPrivacyChanged(state), this);
-        recording.connectObject('changed', () => this._onRecordingChanged(), this);
-        timer.connectObject(
-            'changed', () => this._syncTimer(),
-            'finished', () => this._onTimerFinished('Done'),
-            this);
-        stopwatch.connectObject('changed', () => this._syncTimer(), this);
-        pomodoro.connectObject(
-            'changed', () => this._syncTimer(),
-            'finished', (_p, phase) => this._onTimerFinished(phase === 'work' ? 'Break time' : 'Back to work'),
-            this);
-        this._upcoming = new UpcomingEvents(settings, this._openView.eventSource);
-        this._upcoming.connectObject('changed', () => this._syncMeeting(), this);
-        downloads.connectObject('changed', () => this._syncDownloads(), this);
         this._dndSettings.connectObject('changed::show-banners',
             () => this._syncMoon(), this);
         Main.layoutManager.connectObject('monitors-changed', () => this._relayout(true), this);
@@ -293,17 +258,6 @@ class Island extends St.Widget {
         this._syncPrivacyDots();
         this._syncMoon();
         this._syncMedia();
-        this._syncTimer();
-        this._syncMeeting();
-        this._syncDownloads();
-        if (this._recording.recording) {
-            // A recording that is already running when the extension
-            // enables has been going since before we could see it; counting
-            // from now is the best honest guess.
-            this._recordStartUs = GLib.get_monotonic_time();
-            this._syncRecordTick();
-        }
-        this._syncRecordLive();
         this._relayout(true);
     }
 
@@ -325,8 +279,13 @@ class Island extends St.Widget {
     }
 
     // The view of the peek showing, or null.
-    get _peekView() {
+    get peekView() {
         return this._peekQueue.current?.view ?? null;
+    }
+
+    // Lays the notch out again after what it shows has changed.
+    relayout() {
+        this._relayout();
     }
 
     get _scale() {
@@ -355,8 +314,7 @@ class Island extends St.Widget {
         if (opening) {
             this._state = State.OPEN;
             this._clearPeeks();
-            this._upcoming.shown = false;
-            this._syncRecordTick();
+            this._live.setOpen(true);
             this._fade(this._closedLayer, false);
             this._showOpenView(true);
             this._openView.startTicking();
@@ -380,11 +338,10 @@ class Island extends St.Widget {
         this._showOpenView(false);
         this._openView.closeBatteryPanel();
         this._openView.resetToday();
-        this._upcoming.shown = true;
         this._fade(this._closedLayer, true, FADE_MS);
         this._openView.stopTicking();
+        this._live.setOpen(false);
         this._syncVisualizer();
-        this._syncRecordTick();
         this._springs.forEach(s => s.configure(CLOSE_SPRING));
         this._relayout();
     }
@@ -491,77 +448,10 @@ class Island extends St.Widget {
         this._relayout();
     }
 
-    _onRecordingChanged() {
-        if (this._recording.recording)
-            this._recordStartUs = GLib.get_monotonic_time();
-        else
-            this._stopRecordTick();
-        this._syncRecordLive();
-        this._syncRecordTick();
-        this._relayout();
-    }
-
-    _onShowRecordingChanged() {
-        if (!this._recording.recording)
-            return;
-        this._syncRecordLive();
-        this._syncRecordTick();
-        this._relayout();
-    }
-
-    _syncRecordLive() {
-        this._recordLive.update({
-            iconName: 'media-record-symbolic',
-            title: formatSeconds(this._recordSeconds()),
-        });
-    }
-
-    _recordSeconds() {
-        return Math.floor((GLib.get_monotonic_time() - this._recordStartUs) / GLib.USEC_PER_SEC);
-    }
-
-    // The elapsed time ticks once a second, only while a recording is on
-    // and the notch is closed; when the notch opens or the recording ends,
-    // the ticking stops.
-    _syncRecordTick() {
-        const tick = this._recording.recording && this._state === State.CLOSED &&
-            this._settings.get_boolean('show-recording');
-        if (tick && !this._recordTickId) {
-            this._recordTickId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, () => {
-                this._syncRecordLive();
-                this._relayout();
-                return GLib.SOURCE_CONTINUE;
-            });
-        } else if (!tick && this._recordTickId) {
-            this._stopRecordTick();
-        }
-    }
-
-    _stopRecordTick() {
-        if (this._recordTickId) {
-            GLib.source_remove(this._recordTickId);
-            this._recordTickId = 0;
-        }
-    }
-
-    _onTimerFinished(title) {
-        global.display.get_sound_player().play_from_theme('complete', 'Timer done', null);
-        if (this._state === State.OPEN)
-            return;
-        this.showPeek({
-            view: this._timerLive,
-            apply: () => this._timerLive.update({iconName: 'alarm-symbolic', title}),
-            timeout: TIMER_DONE_TIMEOUT_MS,
-            action: () => this.open('timer'),
-            priority: Priority.NOTIFICATION,
-            key: 'timer',
-        });
-    }
-
     _clearPeeks() {
         this._peekQueue.clear();
         this._syncMusicPeekScroll();
-        this._syncTimer();
+        this._live.syncTimer();
     }
 
     // Long titles slide in the music peek, which only shows while the
@@ -569,52 +459,7 @@ class Island extends St.Widget {
     _syncMusicPeekScroll() {
         this._musicPeek.setScrolling(
             this._settings.get_boolean('scroll-titles') &&
-            this._peekView === this._musicPeek && this._state === State.CLOSED);
-    }
-
-    // The countdown, stopwatch or Pomodoro that is running or paused. Starting
-    // one stops the others, so there is at most one.
-    _activeTimer() {
-        return [this._timer, this._stopwatch, this._pomodoro].find(t => t.active) ?? null;
-    }
-
-    _syncTimer() {
-        if (this._peekView === this._timerLive)
-            return;
-        const timer = this._activeTimer();
-        this._timerLive.update({
-            iconName: timer === this._stopwatch ? 'preferences-system-time-symbolic' : 'alarm-symbolic',
-            title: formatSeconds(timer?.seconds ?? 0),
-        });
-        this._relayout();
-    }
-
-    // With the modes switched off, a stopwatch or Pomodoro left running
-    // would tick unseen, so it is stopped.
-    _onTimerModesChanged() {
-        if (this._settings.get_boolean('timer-modes'))
-            return;
-        this._stopwatch.reset();
-        this._pomodoro.reset();
-    }
-
-    // The countdown to the next event, while one starts within the window.
-    _syncMeeting() {
-        const event = this._upcoming.event;
-        this._meetingLive.update({
-            iconName: 'x-office-calendar-symbolic',
-            title: event ? `in ${this._upcoming.minutesLeft} min` : '',
-        });
-        this._relayout();
-    }
-
-    _syncDownloads() {
-        const count = this._downloads.count;
-        this._downloadLive.update({
-            iconName: 'folder-download-symbolic',
-            title: count > 1 ? `${count}` : '',
-        });
-        this._relayout();
+            this.peekView === this._musicPeek && this._state === State.CLOSED);
     }
 
     get _clockInNotch() {
@@ -684,7 +529,7 @@ class Island extends St.Widget {
             this._artUri = uri;
             this._liveMedia.update(uri);
             const player = this._media.activePlayer;
-            if (this._peekView === this._musicPeek)
+            if (this.peekView === this._musicPeek)
                 this._musicPeek.update(player, uri);
             this._openView.update(player, uri);
             this._loadArtColor(url, uri);
@@ -725,16 +570,11 @@ class Island extends St.Widget {
     // Peeks first, then live activities in order of how much they matter
     // right now.
     _currentClosedView() {
-        if (this._peekView)
-            return this._peekView;
-        if (this._recording.recording && this._settings.get_boolean('show-recording'))
-            return this._recordLive;
-        if (this._activeTimer())
-            return this._timerLive;
-        if (this._upcoming.event)
-            return this._meetingLive;
-        if (this._downloads.count > 0 && this._settings.get_boolean('show-downloads'))
-            return this._downloadLive;
+        if (this.peekView)
+            return this.peekView;
+        const live = this._live.current();
+        if (live)
+            return live;
         if (this._showMedia)
             return this._liveMedia;
         return null;
@@ -944,24 +784,13 @@ class Island extends St.Widget {
             this._media.activePlayer?.playPause();
             return Clutter.EVENT_STOP;
         }
-        // While the recorder activity is showing, a click stops the
-        // recording, like GNOME's own recording indicator does.
-        if (this._peekView === null && this._recording.recording &&
-            this._settings.get_boolean('show-recording') &&
-            this._closedView === this._recordLive) {
-            this._recording.stop();
+        if (this.peekView === null && this._live.press(this._closedView))
             return Clutter.EVENT_STOP;
-        }
-        // The countdown opens the Today tab, where the event is listed.
-        if (this._peekView === null && this._closedView === this._meetingLive) {
-            this.open('today');
-            return Clutter.EVENT_STOP;
-        }
         // A press on a control inside a peek (the volume bar, a
         // notification's button) is the control's. It deals with the peek, so
         // hover must not open the notch afterwards until the pointer has left
         // and come back.
-        if (this._peekView?.takesPress(event)) {
+        if (this.peekView?.takesPress(event)) {
             this._hoverHeld = true;
             this._clearTimeout('hover');
             return Clutter.EVENT_PROPAGATE;
@@ -1099,8 +928,7 @@ class Island extends St.Widget {
         this._menu.destroy();
         this._peekQueue.destroy();
         this._systemPeeks.destroy();
-        this._upcoming.destroy();
-        this._stopRecordTick();
+        this._live.destroy();
         this._timeouts.forEach(id => GLib.source_remove(id));
         this._timeouts.clear();
         this._animator.destroy();

@@ -29,12 +29,12 @@ check "log has no JS errors at startup" $([ "$(errors)" = 0 ] && echo 1 || echo 
 #    a themed icon. A crash there once froze every later notification.
 val 'global.bn._clearPeeks(); Main.messageTray.getSources().forEach(s => s.destroy()); "x"' >/dev/null; wait_a_bit 1
 DBUS_SESSION_BUS_ADDRESS=$(bus) notify-send -i dialog-information "Smoke test" "themed icon"; wait_a_bit 1.2
-shown=$(val 'String(global.bn._peekView !== null || global.bn._peekQueue.length > 0)')
+shown=$(val 'String(global.bn.peekView !== null || global.bn._peekQueue.length > 0)')
 queue=$(val 'String(Main.messageTray.queueCount)')
 check "a notification with a themed icon shows a peek" $([ "$shown" = true ] && echo 1 || echo 0) "peek shown=$shown"
 check "and does not leave the tray queue stuck" $([ "$queue" = 0 ] && echo 1 || echo 0) "queue=$queue"
 val 'global.bn._clearPeeks(); Main.notify("Smoke test", "plain"); "x"' >/dev/null; wait_a_bit 1.2
-check "a plain notification shows a peek afterwards" $([ "$(val 'String(global.bn._peekView !== null)')" = true ] && echo 1 || echo 0) "no peek"
+check "a plain notification shows a peek afterwards" $([ "$(val 'String(global.bn.peekView !== null)')" = true ] && echo 1 || echo 0) "no peek"
 val 'global.bn._clearPeeks(); "x"' >/dev/null
 
 # 4. Disable and enable again: still works, one notch, one handler per event.

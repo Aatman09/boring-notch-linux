@@ -41,7 +41,7 @@ answer=$(grep -A2 "member=ActionInvoked" "$T/mon.log" | tr '\n' ' ')
 check "the press answers ActionInvoked $ID with action look" \
     $(echo "$answer" | grep -q "uint32 $ID" && echo "$answer" | grep -q '"look"' && echo 1 || echo 0) \
     "on the bus: $answer"
-pressed=$(val 'String(global.bn._peekView === null)')
+pressed=$(val 'String(global.bn.peekView === null)')
 check "the peek ends after a button press" $([ "$pressed" = "true" ] && echo 1 || echo 0) "sneak=$pressed"
 
 kill $MONPID 2>/dev/null
