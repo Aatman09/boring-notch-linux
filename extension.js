@@ -17,6 +17,7 @@ import {KeyboardMonitor} from './src/keyboard.js';
 import {MediaManager} from './src/media.js';
 import {PrivacyMonitor} from './src/privacy.js';
 import {RecordingMonitor} from './src/recording.js';
+import {SystemMonitor} from './src/sysmon.js';
 import {ScaledStylesheet} from './src/style.js';
 import {exclusive, Pomodoro, Stopwatch, Timer} from './src/timer.js';
 import {Zoom} from './src/zoom.js';
@@ -102,6 +103,7 @@ export default class BoringNotchExtension extends Extension {
             keyboard: new KeyboardMonitor(),
             recording: new RecordingMonitor(),
             audioRoute: new AudioRouteMonitor(),
+            system: new SystemMonitor(),
         };
 
         this._island = new Island({

@@ -314,6 +314,11 @@ function informationPage(settings) {
     settings.bind('show-next-event', lead, 'sensitive', Gio.SettingsBindFlags.GET);
     calendar.add(lead);
     page.add(calendar);
+
+    const system = new Adw.PreferencesGroup({title: 'System'});
+    system.add(switchRow(settings, 'show-system-tab', 'System tab',
+        'Show processor, memory, network and temperature in a System tab of the open notch. The readings come from /proc and /sys once a second, and only while that tab is on screen.'));
+    page.add(system);
     return page;
 }
 

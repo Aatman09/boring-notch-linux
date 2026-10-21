@@ -508,7 +508,7 @@
 }
 
 .bn-events-scroll {
-  min-height: 40px;
+  min-height: 30px;
 }
 
 /* Opaque, because GNOME stacks the cards of a collapsed group. */
@@ -600,6 +600,39 @@
   font-size: 13px;
   color: #aeaeb2;
   font-weight: 500;
+}
+
+/* System tab */
+
+.bn-system {
+  spacing: 18px;
+  padding: 4px 4px 0;
+}
+
+.bn-system-column {
+  spacing: 4px;
+}
+
+.bn-system-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(235, 235, 240, 0.6);
+}
+
+.bn-system-value {
+  font-size: 15px;
+  font-weight: 500;
+  font-feature-settings: "tnum";
+}
+
+.bn-sysmon-spark {
+  min-height: 30px;
+  margin-top: 2px;
+}
+
+.bn-sysmon-bar {
+  background-color: rgba(255, 255, 255, 0.55);
+  border-radius: 1px;
 }
 
 /* Timer tab */

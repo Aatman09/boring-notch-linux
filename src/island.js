@@ -25,6 +25,7 @@ const OPEN_SIZES = {
     home: {width: 640, height: 190},
     today: {width: 690, height: 460},
     timer: {width: 640, height: 190},
+    system: {width: 640, height: 190},
 };
 const RADII = {
     open: {top: 19, bottom: 24},
@@ -62,7 +63,8 @@ export const Island = GObject.registerClass(
 class Island extends St.Widget {
     // `sources` holds the extension's monitors and models, by name: media,
     // battery, timer, stopwatch, pomodoro, downloads, audio, privacy,
-    // bluetooth, keyboard, recording, audioRoute, artCache and artColor.
+    // bluetooth, keyboard, recording, audioRoute, system, artCache and
+    // artColor.
     _init({settings, zoom, sources, openPreferences}) {
         super._init({
             name: 'boring-notch',
@@ -189,6 +191,7 @@ class Island extends St.Widget {
             timer: sources.timer,
             stopwatch: sources.stopwatch,
             pomodoro: sources.pomodoro,
+            system: sources.system,
             dndSettings: this._dndSettings,
             openPreferences: () => {
                 this.close();
@@ -227,6 +230,7 @@ class Island extends St.Widget {
             'changed::scroll-titles', () => this._syncMusicPeekScroll(),
             'changed::show-privacy-indicators', () => this._syncPrivacyDots(),
             'changed::show-dnd', () => this._syncMoon(),
+            'changed::show-system-tab', () => this._syncSystemTab(),
             this);
         zoom.connectObject('changed', () => this._relayout(true), this);
         this._clockLabel.connect('notify::text', () => this._relayout());
@@ -304,6 +308,8 @@ class Island extends St.Widget {
     }
 
     open(tab = this._tab) {
+        if (tab === 'system' && !this._settings.get_boolean('show-system-tab'))
+            tab = 'home';
         const opening = this._state !== State.OPEN;
         if (!opening && tab === this._tab)
             return;
@@ -439,6 +445,13 @@ class Island extends St.Widget {
         this._privacyDots.camera.visible = show && camera;
         this._privacyDots.sharing.visible = show && sharing;
         this._relayout();
+    }
+
+    // Turning the System tab off while it is open goes back to Home.
+    _syncSystemTab() {
+        if (this._state === State.OPEN && this._tab === 'system' &&
+            !this._settings.get_boolean('show-system-tab'))
+            this.open('home');
     }
 
     // The moon beside the clock while Do Not Disturb is on.
