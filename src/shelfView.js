@@ -57,12 +57,14 @@ function filePaths(text) {
 
 /**
  * The Shelf tab: the files on the shelf, one per row with its icon or
- * thumbnail, name and Open, Show in folder and Remove. Paste takes the files
- * copied in a file manager.
+ * thumbnail, name and Open, Show in folder, Share and Remove. Paste takes
+ * the files copied in a file manager. With clipboard-history on, a Files |
+ * Clipboard toggle switches to the text copied recently, and a click on a
+ * copied text copies it again.
  */
 export const ShelfView = GObject.registerClass(
 class ShelfView extends St.BoxLayout {
-    _init({settings, shelf}) {
+    _init({settings, shelf, clipboard}) {
         super._init({
             orientation: Clutter.Orientation.VERTICAL,
             style_class: 'bn-shelf',
@@ -71,15 +73,25 @@ class ShelfView extends St.BoxLayout {
         });
         this._settings = settings;
         this._shelf = shelf;
+        this._clipboard = clipboard;
+        this._mode = 'files';
         // The file whose share targets are open, if any.
         this._sharePath = null;
 
         const bar = new St.BoxLayout({style_class: 'bn-shelf-bar'});
+        this._modes = new St.BoxLayout({style_class: 'bn-shelf-modes'});
+        this._filesChip = chip('Files', () => this._setMode('files'));
+        this._clipboardChip = chip('Clipboard', () => this._setMode('clipboard'));
+        this._modes.add_child(this._filesChip);
+        this._modes.add_child(this._clipboardChip);
+        bar.add_child(this._modes);
         this._count = new St.Label({style_class: 'bn-shelf-count', x_expand: true, y_align: Clutter.ActorAlign.CENTER});
         this._count.clutter_text.ellipsize = Pango.EllipsizeMode.END;
         bar.add_child(this._count);
-        bar.add_child(chip('Paste', () => this._paste()));
-        bar.add_child(chip('Clear', () => this._shelf.clear()));
+        this._pasteButton = chip('Paste', () => this._pasteFiles());
+        this._clearButton = chip('Clear', () => this._clearMode());
+        bar.add_child(this._pasteButton);
+        bar.add_child(this._clearButton);
         this.add_child(bar);
 
         this._list = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, style_class: 'bn-shelf-list'});
@@ -95,7 +107,14 @@ class ShelfView extends St.BoxLayout {
         this.add_child(scroll);
 
         this._shelf.connectObject('changed', () => this._rebuild(), this);
-        settings.connectObject('changed::shelf-share', () => this._rebuild(), this);
+        this._clipboard.connectObject('changed', () => {
+            if (this._mode === 'clipboard')
+                this._rebuild();
+        }, this);
+        settings.connectObject(
+            'changed::shelf-share', () => this._rebuild(),
+            'changed::clipboard-history', () => this._rebuild(),
+            this);
         this._rebuild();
     }
 
@@ -104,7 +123,65 @@ class ShelfView extends St.BoxLayout {
         this._shelf.prune();
     }
 
-    _paste() {
+    _setMode(mode) {
+        this._mode = mode;
+        this._sharePath = null;
+        this._rebuild();
+    }
+
+    _clearMode() {
+        if (this._mode === 'clipboard')
+            this._clipboard.clear();
+        else
+            this._shelf.clear();
+    }
+
+    _rebuild() {
+        this._list.destroy_all_children();
+        const history = this._settings.get_boolean('clipboard-history');
+        if (!history)
+            this._mode = 'files';
+        this._modes.visible = history;
+        this._filesChip.checked = this._mode === 'files';
+        this._clipboardChip.checked = this._mode === 'clipboard';
+        this._pasteButton.visible = this._mode === 'files';
+
+        if (this._mode === 'clipboard') {
+            this._rebuildClipboard();
+            return;
+        }
+        const paths = this._shelf.paths;
+        this._count.text = paths.length > 0
+            ? `${paths.length} on the shelf`
+            : 'Copy files in the file manager, then press Paste';
+        // Share buttons show only when there is something to share to.
+        this._canShare = this._settings.get_boolean('shelf-share') && shareTargets().length > 0;
+        for (const path of paths) {
+            const row = this._row(path);
+            if (row)
+                this._list.add_child(row);
+        }
+    }
+
+    _rebuildClipboard() {
+        const entries = this._clipboard.entries;
+        this._count.text = entries.length > 0
+            ? `${entries.length} copied, newest first`
+            : 'Text you copy appears here';
+        for (const text of entries) {
+            const label = new St.Label({
+                text: text.replace(/\s+/g, ' ').trim(),
+                style_class: 'bn-shelf-clip-text',
+                x_expand: true,
+            });
+            label.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+            const entry = new St.Button({style_class: 'bn-shelf-clip', child: label, can_focus: true, x_expand: true});
+            entry.connect('clicked', () => St.Clipboard.get_default().set_text(St.ClipboardType.CLIPBOARD, text));
+            this._list.add_child(entry);
+        }
+    }
+
+    _pasteFiles() {
         const clipboard = St.Clipboard.get_default();
         clipboard.get_content(St.ClipboardType.CLIPBOARD, URI_LIST, (_c, bytes) => {
             const text = bytes ? new TextDecoder().decode(bytes.toArray()) : '';
@@ -124,21 +201,6 @@ class ShelfView extends St.BoxLayout {
         // Added last to first, so the first file pasted ends up newest.
         for (const path of paths.reverse())
             this._shelf.add(path);
-    }
-
-    _rebuild() {
-        this._list.destroy_all_children();
-        const paths = this._shelf.paths;
-        this._count.text = paths.length > 0
-            ? `${paths.length} on the shelf`
-            : 'Copy files in the file manager, then press Paste';
-        // Share buttons show only when there is something to share to.
-        this._canShare = this._settings.get_boolean('shelf-share') && shareTargets().length > 0;
-        for (const path of paths) {
-            const row = this._row(path);
-            if (row)
-                this._list.add_child(row);
-        }
     }
 
     // Opens the share targets under a file, or closes them when they are open.

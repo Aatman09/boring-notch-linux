@@ -25,7 +25,7 @@ printf '%%PDF-1.4\n' > "$T/files/report.pdf"
 "$HERE/eval.sh" "const {GLib, St} = imports.gi; const nl = String.fromCharCode(13, 10);
   St.Clipboard.get_default().set_content(St.ClipboardType.CLIPBOARD, 'text/uri-list',
     new GLib.Bytes('file://$T/files/notes.txt' + nl + 'file://$T/files/report.pdf' + nl));
-  global.bn.open('shelf'); $shelf_js v._paste(); 'x'" >/dev/null; wait_a_bit 1
+  global.bn.open('shelf'); $shelf_js v._pasteFiles(); 'x'" >/dev/null; wait_a_bit 1
 want="$T/files/notes.txt|$T/files/report.pdf"
 got=$(paths)
 check "paste adds the two files, newest first" $([ "$got" = "$want" ] && echo 1 || echo 0) "got=$got"
@@ -74,8 +74,42 @@ hidden=$(val "$shelf_js String(!v._list.get_children()[0].get_children()[0].get_
 val "$settings.set_boolean('shelf-share', true); 'x'" >/dev/null; wait_a_bit 0.5
 check "the Share button is there, and goes when shelf-share is off" $([ "$has_share" = true ] && [ "$hidden" = true ] && echo 1 || echo 0) "shown=$has_share hidden_when_off=$hidden"
 
+# 5c. Clipboard history (off by default): the copied text, newest first, no
+#     repeats, no secrets, no text over 2000 characters; a click copies it
+#     again; Clear empties it; turning it off forgets it. Copies are made with
+#     St's set_text in the headless shell's own clipboard.
+sources="Main.extensionManager.lookup('$UUID').stateObj._sources"
+entries() { val "$sources.clipboard.entries.join('|')"; }
+copy() { val "const {St} = imports.gi; St.Clipboard.get_default().set_text(St.ClipboardType.CLIPBOARD, '$1'); 'x'" >/dev/null; wait_a_bit 0.4; }
+clip_text() {
+    val "globalThis.__got = 'pending'; const {St} = imports.gi; St.Clipboard.get_default().get_text(St.ClipboardType.CLIPBOARD, (c, t) => { globalThis.__got = t; }); 'x'" >/dev/null
+    wait_a_bit 0.4
+    val "globalThis.__got"
+}
+val "$settings.set_boolean('clipboard-history', true); 'x'" >/dev/null; wait_a_bit 0.5
+copy 'alpha clip'; copy 'beta clip'; copy 'alpha clip'
+check "copies are listed newest first, without repeats" $([ "$(entries)" = "alpha clip|beta clip" ] && echo 1 || echo 0) "entries=$(entries)"
+val "const {St} = imports.gi; St.Clipboard.get_default().set_text(St.ClipboardType.CLIPBOARD, 'x'.repeat(2001)); 'x'" >/dev/null; wait_a_bit 0.4
+check "a text over 2000 characters is not kept" $([ "$(entries)" = "alpha clip|beta clip" ] && echo 1 || echo 0) "entries=$(entries | cut -c1-60)"
+val "const {St} = imports.gi; const cb = St.Clipboard.get_default(); cb.get_mimetypes = () => ['text/plain;charset=utf-8', 'x-kde-passwordManagerHint']; cb.set_text(St.ClipboardType.CLIPBOARD, 'hunter2 secret'); delete cb.get_mimetypes; 'x'" >/dev/null; wait_a_bit 0.4
+check "a secret marked by a password manager is not kept" $([ "$(entries)" = "alpha clip|beta clip" ] && echo 1 || echo 0) "entries=$(entries)"
+val "$shelf_js v._setMode('clipboard'); 'x'" >/dev/null; wait_a_bit 0.3
+rows=$(val "$shelf_js String(v._list.get_children().length)")
+check "the Clipboard list shows one row per copied text" $([ "$rows" = 2 ] && echo 1 || echo 0) "rows=$rows"
+val "$shelf_js v._list.get_children()[1].emit('clicked', null); 'x'" >/dev/null; wait_a_bit 0.4
+got=$(clip_text)
+check "a click copies the text back" $([ "$got" = "beta clip" ] && echo 1 || echo 0) "clipboard=$got"
+val "$shelf_js v._clearMode(); 'x'" >/dev/null; wait_a_bit 0.3
+check "Clear empties the Clipboard list" $([ -z "$(entries)" ] && echo 1 || echo 0) "entries=$(entries)"
+val "$shelf_js v._setMode('files'); 'x'" >/dev/null
+copy 'delta clip'
+val "$settings.set_boolean('clipboard-history', false); 'x'" >/dev/null; wait_a_bit 0.4
+copy 'gamma clip'
+check "turning it off forgets the copies and stops reading" $([ -z "$(entries)" ] && echo 1 || echo 0) "entries=$(entries)"
+check "no copied text is written to disk" $(grep -rqE "alpha clip|beta clip|delta clip|gamma clip" "$T/cache" 2>/dev/null && echo 0 || echo 1) "a copied text is in the cache folder"
+
 # 6. The shelf survives a restart: the cache and the test files are kept.
-val "global.bn.open('shelf'); $shelf_js v._paste(); 'x'" >/dev/null; wait_a_bit 1
+val "global.bn.open('shelf'); $shelf_js v._pasteFiles(); 'x'" >/dev/null; wait_a_bit 1
 before=$(paths)
 wait_a_bit 1
 "$HERE/stop.sh" >/dev/null

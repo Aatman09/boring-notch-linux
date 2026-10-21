@@ -232,6 +232,10 @@
       <default>true</default>
       <summary>Add finished downloads and new screenshots to the shelf</summary>
     </key>
+    <key name="clipboard-history" type="b">
+      <default>false</default>
+      <summary>Read the clipboard whenever something is copied and keep the recent text, in memory only, for the Clipboard list of the Shelf tab</summary>
+    </key>
     <key name="shelf-share" type="b">
       <default>true</default>
       <summary>Show a Share button on shelf files, for the sharing targets found on this computer: GSConnect, Bluetooth, LocalSend and email</summary>

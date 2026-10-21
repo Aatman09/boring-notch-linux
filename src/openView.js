@@ -24,7 +24,7 @@ const PARKED_Y = -10000;
 export const OpenView = GObject.registerClass({
     Signals: {'tab-selected': {param_types: [GObject.TYPE_STRING]}},
 }, class OpenView extends St.Widget {
-    _init({settings, battery, timer, stopwatch, pomodoro, shelf, dndSettings, openPreferences}) {
+    _init({settings, battery, timer, stopwatch, pomodoro, shelf, clipboard, dndSettings, openPreferences}) {
         super._init({style_class: 'bn-open', opacity: 0});
         this._settings = settings;
 
@@ -43,7 +43,7 @@ export const OpenView = GObject.registerClass({
             home,
             today: this._today,
             timer: new TimerView({settings, timer, stopwatch, pomodoro}),
-            shelf: new ShelfView({settings, shelf}),
+            shelf: new ShelfView({settings, shelf, clipboard}),
         };
         Object.values(this._pages).forEach(page => this.add_child(page));
         this._tab = 'home';

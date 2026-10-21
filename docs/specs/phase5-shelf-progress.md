@@ -21,7 +21,14 @@ time, each after the gate in `docs/specs/next-work-handoff.md`.
    `xdg-email`). Share opens the targets under the file, inline instead of a
    popup menu, so the notch does not close under the pointer. GSConnect is
    untested (not installed here).
-3. **Clipboard history (F18)**, off by default: not started.
+3. **Clipboard history (F18)**, off by default: done in this commit.
+   `src/clipboard.js` reads the text on `Meta.Selection` `owner-changed` (no
+   polling), keeps 25 entries of at most 2000 characters, newest first, no
+   repeats, in memory only, and skips a copy whose clipboard types include
+   `x-kde-passwordManagerHint`. The Shelf tab gets a Files | Clipboard toggle
+   (only when the setting is on), a click copies an entry back, Clear empties
+   the list. The secret check was tested with a stubbed `get_mimetypes`,
+   since no real password manager is installed here.
 
 ## Notes
 

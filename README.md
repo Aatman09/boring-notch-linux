@@ -59,6 +59,12 @@ the pointer on it.
   computer can send it: a phone through GSConnect, Bluetooth, LocalSend and
   email. Only the ones installed or running are listed, and the button is
   hidden when there are none.
+- **Clipboard history (off by default):** with it on, the text you copy is
+  read each time the clipboard changes, and the last 25 texts of up to 2000
+  characters are listed in the Shelf tab's Clipboard view. Click one to copy
+  it again. It is kept in memory only, never written to disk. Text that a
+  password manager marks as secret (KeePassXC does) is skipped; other managers
+  may not mark it.
 - **Volume and brightness:** changes appear inside the notch instead of the
   GNOME popup: as a bar beside the icon in the top row, or as a row grown
   under the clock, with the percentage beside the bar. Drag the bar to set

@@ -11,6 +11,7 @@ import {AudioLevels, IGNORED_RECORDING_APPS} from './src/audio.js';
 import {AudioRouteMonitor} from './src/audioRoute.js';
 import {BatteryMonitor} from './src/battery.js';
 import {BluetoothMonitor} from './src/bluetooth.js';
+import {ClipboardHistory} from './src/clipboard.js';
 import {DownloadWatcher} from './src/downloads.js';
 import {Island} from './src/island.js';
 import {KeyboardMonitor} from './src/keyboard.js';
@@ -97,6 +98,7 @@ export default class BoringNotchExtension extends Extension {
             pomodoro,
             downloads,
             shelf: new Shelf({settings: this._settings, downloads}),
+            clipboard: new ClipboardHistory({settings: this._settings}),
             artCache: new ArtCache(),
             artColor: new ArtColorLoader(),
             audio: new AudioLevels(),

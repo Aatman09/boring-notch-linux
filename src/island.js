@@ -62,7 +62,7 @@ const GESTURE_GAP_US = 300 * 1000;
 export const Island = GObject.registerClass(
 class Island extends St.Widget {
     // `sources` holds the extension's monitors and models, by name: media,
-    // battery, timer, stopwatch, pomodoro, shelf, downloads, audio, privacy,
+    // battery, timer, stopwatch, pomodoro, shelf, clipboard, downloads, audio, privacy,
     // bluetooth, keyboard, recording, audioRoute, artCache and artColor.
     _init({settings, zoom, sources, openPreferences}) {
         super._init({
@@ -191,6 +191,7 @@ class Island extends St.Widget {
             stopwatch: sources.stopwatch,
             pomodoro: sources.pomodoro,
             shelf: sources.shelf,
+            clipboard: sources.clipboard,
             dndSettings: this._dndSettings,
             openPreferences: () => {
                 this.close();

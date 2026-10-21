@@ -252,6 +252,11 @@ function shelfPage(settings) {
     share.add(switchRow(settings, 'shelf-share', 'Share button',
         'Show Share on each file, with Phone (GSConnect), Bluetooth, LocalSend and Email when they are available'));
     page.add(share);
+
+    const clipboard = new Adw.PreferencesGroup({title: 'Clipboard'});
+    clipboard.add(switchRow(settings, 'clipboard-history', 'Clipboard history',
+        'Reads the clipboard every time something is copied, and lists the recent text in the Shelf tab. It is kept in memory only, never written to disk. Text a password manager marks as secret is skipped when the manager sets the x-kde-passwordManagerHint type (KeePassXC does); other managers may not, and their secrets are kept.'));
+    page.add(clipboard);
     return page;
 }
 

@@ -684,6 +684,28 @@
   padding: 2px 6px 6px 48px;
 }
 
+.bn-shelf-modes {
+  spacing: 4px;
+}
+
+/* One copied text, a single line, that copies it again when clicked */
+
+.bn-shelf-clip {
+  padding: 5px 8px;
+  border-radius: 8px;
+  text-align: left;
+  color: #ebebf0;
+  transition-duration: 150ms;
+}
+
+.bn-shelf-clip:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.bn-shelf-clip-text {
+  font-size: 13px;
+}
+
 .bn-shelf-name {
   font-size: 13px;
   font-weight: 500;
