@@ -265,13 +265,17 @@
   font-size: 13px;
 }
 
+/* Both columns have a fixed width, so every row is as wide as the next and
+   the names and values line up in two columns. */
 .bn-battery-panel-name {
   min-width: 110px;
+  text-align: right;
   color: #aeaeb2;
   font-weight: 500;
 }
 
 .bn-battery-panel-value {
+  min-width: 110px;
   color: #ffffff;
   font-feature-settings: "tnum";
   font-weight: 500;

@@ -161,6 +161,22 @@ export function formatTime(us) {
     return `${minutes}:${seconds}`;
 }
 
+// The same, from seconds.
+export function formatSeconds(seconds) {
+    return formatTime(seconds * GLib.USEC_PER_SEC);
+}
+
+// A round icon button for the open notch.
+export function iconButton(iconName, styleClass, callback) {
+    const button = new St.Button({
+        style_class: `bn-button ${styleClass}`,
+        can_focus: true,
+        child: new St.Icon({icon_name: iconName}),
+    });
+    button.connect('clicked', callback);
+    return button;
+}
+
 // Opens a panel of GNOME's Settings, such as 'power' or 'privacy'.
 export function openSettingsPanel(panel) {
     try {

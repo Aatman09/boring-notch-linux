@@ -3,9 +3,7 @@ import GLib from 'gi://GLib';
 import {IconTextView} from './closedViews.js';
 import {Priority} from './peekQueue.js';
 import {UpcomingEvents} from './upcoming.js';
-import {formatTime} from './widgets.js';
-
-const formatSeconds = s => formatTime(s * GLib.USEC_PER_SEC);
+import {formatSeconds} from './widgets.js';
 
 const TIMER_DONE_TIMEOUT_MS = 6000;
 // Room beside each activity's icon for its figure, in design pixels: the
