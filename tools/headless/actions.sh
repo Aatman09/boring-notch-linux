@@ -31,17 +31,17 @@ ID=$(DBUS_SESSION_BUS_ADDRESS=$(bus) gdbus call --session \
     | tr -d '(),' | awk '{print $2}')
 timeout 1.5 tail -f /dev/null
 
-button=$(val 'global.bn._messageSneak._buttons.get_children().map(b => b.label).join(",")')
+button=$(val 'global.bn._systemPeeks.messageView._buttons.get_children().map(b => b.label).join(",")')
 check "the peek shows the notification's buttons" $([ "$button" = "Look,Pack" ] && echo 1 || echo 0) "buttons=$button"
 
-val 'global.bn._messageSneak._buttons.get_children()[0].emit("clicked", 1)' >/dev/null
+val 'global.bn._systemPeeks.messageView._buttons.get_children()[0].emit("clicked", 1)' >/dev/null
 timeout 2 tail -f /dev/null
 
 answer=$(grep -A2 "member=ActionInvoked" "$T/mon.log" | tr '\n' ' ')
 check "the press answers ActionInvoked $ID with action look" \
     $(echo "$answer" | grep -q "uint32 $ID" && echo "$answer" | grep -q '"look"' && echo 1 || echo 0) \
     "on the bus: $answer"
-pressed=$(val 'String(global.bn._sneak === null)')
+pressed=$(val 'String(global.bn._peekView === null)')
 check "the peek ends after a button press" $([ "$pressed" = "true" ] && echo 1 || echo 0) "sneak=$pressed"
 
 kill $MONPID 2>/dev/null

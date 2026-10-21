@@ -81,40 +81,33 @@ export default class BoringNotchExtension extends Extension {
         this._settings = this.getSettings();
         this._zoom = new Zoom(this._settings);
         this._stylesheet = new ScaledStylesheet(this.dir.resolve_relative_path('src/style.css'), this._zoom, this._settings);
-        this._media = new MediaManager(this._settings);
-        this._battery = new BatteryMonitor();
-        this._timer = new Timer();
-        this._stopwatch = new Stopwatch();
-        this._pomodoro = new Pomodoro(this._settings);
+        const timer = new Timer();
+        const stopwatch = new Stopwatch();
+        const pomodoro = new Pomodoro(this._settings);
         // The notch shows one timer figure: starting a mode resets the others.
-        exclusive(this._timer, this._stopwatch, this._pomodoro);
-        this._downloads = new DownloadWatcher();
-        this._artCache = new ArtCache();
-        this._artColor = new ArtColorLoader();
-        this._audio = new AudioLevels();
-        this._privacy = new PrivacyMonitor();
-        this._bluetooth = new BluetoothMonitor();
-        this._keyboard = new KeyboardMonitor();
-        this._recording = new RecordingMonitor();
-        this._audioRoute = new AudioRouteMonitor();
+        exclusive(timer, stopwatch, pomodoro);
+        // Everything the notch watches or drives; each has destroy().
+        this._sources = {
+            media: new MediaManager(this._settings),
+            battery: new BatteryMonitor(),
+            timer,
+            stopwatch,
+            pomodoro,
+            downloads: new DownloadWatcher(),
+            artCache: new ArtCache(),
+            artColor: new ArtColorLoader(),
+            audio: new AudioLevels(),
+            privacy: new PrivacyMonitor(),
+            bluetooth: new BluetoothMonitor(),
+            keyboard: new KeyboardMonitor(),
+            recording: new RecordingMonitor(),
+            audioRoute: new AudioRouteMonitor(),
+        };
 
         this._island = new Island({
             settings: this._settings,
             zoom: this._zoom,
-            media: this._media,
-            battery: this._battery,
-            timer: this._timer,
-            stopwatch: this._stopwatch,
-            pomodoro: this._pomodoro,
-            downloads: this._downloads,
-            audio: this._audio,
-            privacy: this._privacy,
-            bluetooth: this._bluetooth,
-            keyboard: this._keyboard,
-            recording: this._recording,
-            audioRoute: this._audioRoute,
-            artCache: this._artCache,
-            artColor: this._artColor,
+            sources: this._sources,
             openPreferences: () => this.openPreferences(),
         });
         Main.layoutManager.addTopChrome(this._island, {trackFullscreen: true});
@@ -210,34 +203,8 @@ export default class BoringNotchExtension extends Extension {
         this._island.destroy();
         this._island = null;
 
-        this._privacy.destroy();
-        this._privacy = null;
-        this._bluetooth.destroy();
-        this._bluetooth = null;
-        this._keyboard.destroy();
-        this._keyboard = null;
-        this._recording.destroy();
-        this._recording = null;
-        this._audioRoute.destroy();
-        this._audioRoute = null;
-        this._audio.destroy();
-        this._audio = null;
-        this._artCache.destroy();
-        this._artCache = null;
-        this._artColor.destroy();
-        this._artColor = null;
-        this._downloads.destroy();
-        this._downloads = null;
-        this._timer.destroy();
-        this._timer = null;
-        this._stopwatch.destroy();
-        this._stopwatch = null;
-        this._pomodoro.destroy();
-        this._pomodoro = null;
-        this._battery.destroy();
-        this._battery = null;
-        this._media.destroy();
-        this._media = null;
+        Object.values(this._sources).forEach(source => source.destroy());
+        this._sources = null;
         this._stylesheet.destroy();
         this._stylesheet = null;
         this._zoom.destroy();

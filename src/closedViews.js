@@ -58,6 +58,27 @@ class ClosedView extends St.BoxLayout {
     get showsClock() {
         return true;
     }
+
+    // Whether a press belongs to a control inside the view (a bar, a
+    // button), so the island leaves it to that control instead of acting
+    // on the whole peek.
+    takesPress(_event) {
+        return false;
+    }
+
+    // Turns the left and right halves into one group in the middle: the
+    // base layout puts its halves at the notch's edges, which leaves a gap
+    // between things that belong together. Both halves then name the
+    // group, so subclasses can add to either. Returns the group.
+    _centre() {
+        const [left, gap, right] = this.get_children();
+        this.remove_child(gap);
+        this.remove_child(right);
+        this.right = left;
+        left.x_expand = true;
+        left.x_align = Clutter.ActorAlign.CENTER;
+        return left;
+    }
 });
 
 /** MusicLiveActivity: album art on the left, visualizer on the right. */
@@ -185,9 +206,9 @@ class HudView extends ClosedView {
         this._value.text = `${Math.round(level * 100)}`;
     }
 
-    // Whether a press is on the bar, so the island leaves it to the slider.
-    isBar(actor) {
-        return actor === this._bar;
+    // A press on the bar is the slider's.
+    takesPress(event) {
+        return event.get_source() === this._bar;
     }
 
     // A bar the pointer is on or dragging must not vanish under the hand.
@@ -294,9 +315,7 @@ export const ScreenshotPeekView = GObject.registerClass(
 class ScreenshotPeekView extends ClosedView {
     _init() {
         super._init('bn-screenshot-peek');
-        // One group, thumbnail then caption, centred in the notch: the base
-        // layout instead lands its children at the notch's edges, which
-        // leaves the caption far from the picture. GNOME hands the
+        // The thumbnail and its caption, centred together. GNOME hands the
         // screenshot over as an St.ImageContent, which always shows whole,
         // whatever its size.
         this._thumbnail = new St.Widget({
@@ -308,13 +327,9 @@ class ScreenshotPeekView extends ClosedView {
             text: 'Screenshot',
             y_align: Clutter.ActorAlign.CENTER,
         });
-        const [left, gap, right] = this.get_children();
-        this.remove_child(gap);
-        this.remove_child(right);
-        left.x_expand = true;
-        left.x_align = Clutter.ActorAlign.CENTER;
-        left.add_child(this._thumbnail);
-        left.add_child(this._caption);
+        const group = this._centre();
+        group.add_child(this._thumbnail);
+        group.add_child(this._caption);
     }
 
     sideWidth() {
@@ -346,14 +361,17 @@ class ScreenshotPeekView extends ClosedView {
 /**
  * An icon and some text. Live activities (timer, downloads) put the text on
  * the right, around the clock. Peeks (notifications, finished downloads) are
- * one left-aligned row with no clock.
+ * one left-aligned row with no clock, or with `centred` one row in the
+ * middle.
  */
 export const IconTextView = GObject.registerClass(
 class IconTextView extends ClosedView {
-    _init(styleClass, sideWidth, {peek = false} = {}) {
+    _init(styleClass, sideWidth, {peek = false, centred = false} = {}) {
         super._init(`bn-icon-text ${styleClass}`);
         this._side = sideWidth;
         this._peek = peek;
+        if (centred)
+            this._centre();
         this._icon = new St.Icon({style_class: 'bn-icon-text-icon', y_align: Clutter.ActorAlign.CENTER});
         this.left.add_child(this._icon);
         this._title = new St.Label({style_class: 'bn-icon-text-title', y_align: Clutter.ActorAlign.CENTER});
@@ -407,9 +425,9 @@ class NotificationPeekView extends IconTextView {
         }
     }
 
-    // Whether the pointer is on one of the buttons, so a press there is left
-    // to the button. The press's own source can be missing, so hover is used.
-    get pointerOnButton() {
+    // A press on a button is the button's. The press's own source can be
+    // missing, so the buttons' hover is asked instead.
+    takesPress(_event) {
         return this._buttons.get_children().some(button => button.hover);
     }
 
