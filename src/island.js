@@ -234,6 +234,7 @@ class Island extends St.Widget {
             'changed::show-dnd', () => this._syncMoon(),
             'changed::show-system-tab', () => this._syncSystemTab(),
             'changed::show-lyrics', () => this._syncMedia(),
+            'changed::notch-monitor', () => this._relayout(true),
             this);
         zoom.connectObject('changed', () => this._relayout(true), this);
         this._clockLabel.connect('notify::text', () => this._relayout());
@@ -268,8 +269,14 @@ class Island extends St.Widget {
         this._relayout(true);
     }
 
+    // The monitor the notch is on: the one named by notch-monitor, or the
+    // primary one when that is 'primary' or not connected.
     get monitorIndex() {
-        return Main.layoutManager.primaryIndex;
+        const connector = this._settings.get_string('notch-monitor');
+        const index = connector === 'primary'
+            ? -1
+            : global.backend.get_monitor_manager().get_monitor_for_connector(connector);
+        return index >= 0 ? index : Main.layoutManager.primaryIndex;
     }
 
     get isOpen() {
@@ -731,10 +738,10 @@ class Island extends St.Widget {
         });
     }
 
-    // Device pixels per logical pixel: 1.25 at 125% fractional scaling.
+    // Device pixels per logical pixel on the notch's monitor: 1.25 at 125%
+    // fractional scaling. Other monitors may have their own scale.
     get _deviceScale() {
-        const views = global.stage.peek_stage_views();
-        return Math.max(1, ...views.map(v => v.get_scale()));
+        return Math.max(1, global.display.get_monitor_scale(this.monitorIndex));
     }
 
     // Rounds to whole device pixels. At fractional scales a logical pixel
@@ -746,7 +753,7 @@ class Island extends St.Widget {
     }
 
     _applyGeometry() {
-        const monitor = Main.layoutManager.primaryMonitor;
+        const monitor = Main.layoutManager.monitors[this.monitorIndex];
         if (!monitor)
             return;
 

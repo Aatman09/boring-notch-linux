@@ -86,6 +86,19 @@ function shortcutRow(settings, key, title) {
     return row;
 }
 
+// The connectors Mutter reports now, such as eDP-1 or HDMI-1.
+function connectedMonitors() {
+    try {
+        const [, monitors] = Gio.DBus.session.call_sync(
+            'org.gnome.Mutter.DisplayConfig', '/org/gnome/Mutter/DisplayConfig',
+            'org.gnome.Mutter.DisplayConfig', 'GetCurrentState', null, null,
+            Gio.DBusCallFlags.NONE, -1, null).deepUnpack();
+        return monitors.map(([info]) => info[0]);
+    } catch {
+        return [];
+    }
+}
+
 function generalPage(settings) {
     const page = new Adw.PreferencesPage({title: 'General', icon_name: 'preferences-system-symbolic'});
 
@@ -107,6 +120,14 @@ function generalPage(settings) {
         CLOCK_MODES, () => settings.get_string('clock-mode'), v => settings.set_string('clock-mode', v));
     settings.connect('changed::clock-mode', syncClock);
     notch.add(clock);
+    const current = settings.get_string('notch-monitor');
+    const displays = [['primary', 'Primary display'], ...connectedMonitors().map(c => [c, c])];
+    if (!displays.some(([id]) => id === current))
+        displays.push([current, `${current} (not connected)`]);
+    const [display] = choiceRow('Display',
+        'The display that shows the notch. When it is not connected, the notch goes to the primary display.',
+        displays, () => settings.get_string('notch-monitor'), v => settings.set_string('notch-monitor', v));
+    notch.add(display);
     notch.add(switchRow(settings, 'remember-last-tab', 'Remember the last tab',
         'Open on the tab used last time instead of Home'));
     page.add(notch);

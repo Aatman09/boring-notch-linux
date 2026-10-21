@@ -55,6 +55,10 @@ the pointer on it.
   processor's temperature, each with its last half minute as small bars. It
   reads `/proc` and `/sys` once a second, and only while that tab is on
   screen; nothing is read when the notch is closed.
+- **Display:** in Settings, pick the display that shows the notch: the
+  primary display (the default) or one of the connected displays by its
+  connector name, such as HDMI-1. When that display is unplugged, the notch
+  goes to the primary display. The notch shows on one display at a time.
 - **Downloads:** browser downloads show while they run, and a peek with the
   file name when they finish. Click it to open the Downloads folder.
 - **Volume and brightness:** changes appear inside the notch instead of the
