@@ -156,6 +156,35 @@ const Header = GObject.registerClass({
     }
 });
 
+/**
+ * The cover with its glow: the box is the cover's size, so the row lays out
+ * as if there were no glow, and the glow is centred on the cover at its own
+ * larger size, spilling over the box.
+ */
+const ArtLayout = GObject.registerClass(
+class ArtLayout extends Clutter.LayoutManager {
+    vfunc_get_preferred_width(container, forHeight) {
+        return container.last_child?.get_preferred_width(forHeight) ?? [0, 0];
+    }
+
+    vfunc_get_preferred_height(container, forWidth) {
+        return container.last_child?.get_preferred_height(forWidth) ?? [0, 0];
+    }
+
+    vfunc_allocate(container, box) {
+        const [glow, art] = container.get_children();
+        art.allocate(box);
+        const [, width] = glow.get_preferred_width(-1);
+        const [, height] = glow.get_preferred_height(-1);
+        const glowBox = new Clutter.ActorBox();
+        glowBox.set_origin(
+            Math.round((box.x1 + box.x2 - width) / 2),
+            Math.round((box.y1 + box.y2 - height) / 2));
+        glowBox.set_size(width, height);
+        glow.allocate(glowBox);
+    }
+});
+
 /** The music player from NotchHomeView. */
 const MediaPlayer = GObject.registerClass(
 class MediaPlayer extends St.BoxLayout {
@@ -165,7 +194,7 @@ class MediaPlayer extends St.BoxLayout {
         // The cover, with a blurred enlarged copy glowing behind it while
         // the track plays; paused, the cover itself shrinks and dims.
         this._artBox = new St.Widget({
-            layout_manager: new Clutter.BinLayout(),
+            layout_manager: new ArtLayout(),
             y_align: Clutter.ActorAlign.CENTER,
             reactive: true,
         });
@@ -175,8 +204,6 @@ class MediaPlayer extends St.BoxLayout {
             style_class: 'bn-art-glow',
             visible: false,
             opacity: 128,
-            x_align: Clutter.ActorAlign.CENTER,
-            y_align: Clutter.ActorAlign.CENTER,
         });
         this._glow.add_effect(new Shell.BlurEffect({radius: 40, mode: Shell.BlurMode.ACTOR}));
         this._art = new AlbumArt('bn-art');
