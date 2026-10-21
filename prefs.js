@@ -165,7 +165,7 @@ function generalPage(settings) {
 
     const shortcuts = new Adw.PreferencesGroup({
         title: 'Shortcuts',
-        description: 'Type a shortcut such as <Super><Shift>n and press Enter. Leave it empty to turn it off.',
+        description: 'Type a shortcut such as &lt;Super&gt;&lt;Shift&gt;n and press Enter. Leave it empty to turn it off.',
     });
     shortcuts.add(shortcutRow(settings, 'toggle-notch', 'Open or close the notch'));
     shortcuts.add(shortcutRow(settings, 'show-music-peek', 'Show what is playing'));
