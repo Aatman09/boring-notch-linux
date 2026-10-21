@@ -44,6 +44,9 @@ the pointer on it.
   and a Pomodoro (25 minutes of work, then 5 of break, both lengths set in
   Settings) sit beside it; the phases follow each other until it is reset,
   and whichever mode runs shows in the closed notch.
+- **Next event:** when the next timed event today starts within 15 minutes
+  (a setting), the closed notch shows "in 12 min" until it starts. It counts
+  down once a minute, and clicking it opens the Today tab.
 - **Downloads:** browser downloads show while they run, and a peek with the
   file name when they finish. Click it to open the Downloads folder.
 - **Volume and brightness:** changes appear inside the notch instead of the

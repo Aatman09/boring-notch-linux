@@ -215,5 +215,14 @@
       <default>true</default>
       <summary>Name the next event today, with its time, on the Home tab when nothing is playing</summary>
     </key>
+    <key name="show-next-event" type="b">
+      <default>true</default>
+      <summary>Count down to the next event in the closed notch while it starts within the lead time</summary>
+    </key>
+    <key name="meeting-lead-minutes" type="i">
+      <range min="1" max="60"/>
+      <default>15</default>
+      <summary>How many minutes before an event its countdown starts showing in the closed notch</summary>
+    </key>
   </schema>
 </schemalist>

@@ -307,6 +307,12 @@ function informationPage(settings) {
         'Leave the all-day events out of the Today tab\'s list'));
     calendar.add(switchRow(settings, 'up-next', 'Up next',
         'Name the next event today, with its time, on the Home tab when nothing is playing'));
+    calendar.add(switchRow(settings, 'show-next-event', 'Countdown to the next event',
+        'Show "in 12 min" in the closed notch before an event starts. Clicking it opens the Today tab.'));
+    const lead = spinRow(settings, 'meeting-lead-minutes', 'Countdown starts',
+        'Minutes before the event that the countdown begins', [1, 60, 1]);
+    settings.bind('show-next-event', lead, 'sensitive', Gio.SettingsBindFlags.GET);
+    calendar.add(lead);
     page.add(calendar);
     return page;
 }

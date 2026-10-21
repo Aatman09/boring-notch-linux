@@ -14,6 +14,7 @@ import {BatterySneakView, IconTextView, InlineHudView, LiveMediaView, MusicPeekV
 import {NotchShape} from './notchShape.js';
 import {OpenView} from './openView.js';
 import {Spring, SpringAnimator} from './spring.js';
+import {UpcomingEvents} from './upcoming.js';
 import {formatTime} from './widgets.js';
 
 const formatSeconds = s => formatTime(s * GLib.USEC_PER_SEC);
@@ -56,6 +57,8 @@ const DND_TIMEOUT_MS = 2500;
 const KEYBOARD_TIMEOUT_MS = 1200;
 // The GNOME screen recorder is read through Main.screenshotUI (B1).
 const RECORD_LIVE_SIDE = 52;
+// Room for "in 15 min" beside the calendar icon.
+const MEETING_LIVE_SIDE = 84;
 const AUDIO_ROUTE_TIMEOUT_MS = 2500;
 // A notch opened from the keyboard closes by itself unless the pointer
 // comes to it.
@@ -201,6 +204,7 @@ class Island extends St.Widget {
         this._recordLive = new IconTextView('bn-record-live', RECORD_LIVE_SIDE);
         this._batterySneak = new BatterySneakView();
         this._timerLive = new IconTextView('bn-timer-live', 52);
+        this._meetingLive = new IconTextView('bn-meeting-live', MEETING_LIVE_SIDE);
         this._downloadLive = new IconTextView('bn-download-live', 52);
         this._messageSneak = new NotificationPeekView();
         this._privacyPeek = new IconTextView('bn-privacy-peek', 145, {peek: true});
@@ -219,7 +223,7 @@ class Island extends St.Widget {
         this._musicPeek = new MusicPeekView();
         [this._recordLive, this._liveMedia, this._hud, this._hudRow,
             this._batterySneak,
-            this._timerLive, this._downloadLive, this._messageSneak,
+            this._timerLive, this._meetingLive, this._downloadLive, this._messageSneak,
             this._privacyPeek, this._screenshotPeek, this._bluetoothPeek,
             this._dndPeek, this._keyboardPeek, this._audioRoutePeek,
             this._musicPeek]
@@ -310,6 +314,8 @@ class Island extends St.Widget {
             'changed', () => this._syncTimer(),
             'finished', (_p, phase) => this._onTimerFinished(phase === 'work' ? 'Break time' : 'Back to work'),
             this);
+        this._upcoming = new UpcomingEvents(settings);
+        this._upcoming.connectObject('changed', () => this._syncMeeting(), this);
         downloads.connectObject(
             'changed', () => this._syncDownloads(),
             'finished', (_d, file) => this._onDownloadFinished(file),
@@ -335,6 +341,7 @@ class Island extends St.Widget {
         this._syncMoon();
         this._syncMedia();
         this._syncTimer();
+        this._syncMeeting();
         this._syncDownloads();
         if (this._recording.recording) {
             // A recording that is already running when the extension
@@ -377,6 +384,7 @@ class Island extends St.Widget {
         if (opening) {
             this._state = State.OPEN;
             this._clearPeeks();
+            this._upcoming.shown = false;
             this._syncRecordTick();
             this._fade(this._closedLayer, false);
             this._showOpenView(true);
@@ -400,6 +408,7 @@ class Island extends St.Widget {
 
         this._showOpenView(false);
         this._openView.closeBatteryPanel();
+        this._upcoming.shown = true;
         this._fade(this._closedLayer, true, FADE_MS);
         this._openView.stopTicking();
         this._syncVisualizer();
@@ -901,6 +910,16 @@ class Island extends St.Widget {
         this._pomodoro.reset();
     }
 
+    // The countdown to the next event, while one starts within the window.
+    _syncMeeting() {
+        const event = this._upcoming.event;
+        this._meetingLive.update({
+            iconName: 'x-office-calendar-symbolic',
+            title: event ? `in ${this._upcoming.minutesLeft} min` : '',
+        });
+        this._relayout();
+    }
+
     _syncDownloads() {
         const count = this._downloads.count;
         this._downloadLive.update({
@@ -1024,6 +1043,8 @@ class Island extends St.Widget {
             return this._recordLive;
         if (this._activeTimer())
             return this._timerLive;
+        if (this._upcoming.event)
+            return this._meetingLive;
         if (this._downloads.count > 0 && this._settings.get_boolean('show-downloads'))
             return this._downloadLive;
         if (this._showMedia)
@@ -1243,6 +1264,11 @@ class Island extends St.Widget {
             this._recording.stop();
             return Clutter.EVENT_STOP;
         }
+        // The countdown opens the Today tab, where the event is listed.
+        if (this._sneak === null && this._closedView === this._meetingLive) {
+            this.open('today');
+            return Clutter.EVENT_STOP;
+        }
         // Pressing the HUD bar sets the level; it must not open the notch.
         if ((this._sneak === this._hud || this._sneak === this._hudRow) &&
             this._sneak.isBar(event.get_source()))
@@ -1421,6 +1447,7 @@ class Island extends St.Widget {
 
     _onDestroy() {
         this._menu.destroy();
+        this._upcoming.destroy();
         this._stopRecordTick();
         this._timeouts.forEach(id => GLib.source_remove(id));
         this._timeouts.clear();
