@@ -17,6 +17,11 @@ const CLOCK_MODES = [
     ['keep', 'Where GNOME puts it'],
 ];
 
+const HUD_STYLES = [
+    ['inline', 'Bar beside the icon'],
+    ['row', 'A row under the clock'],
+];
+
 const PLAYER_BUTTONS = [
     ['', 'None'],
     ['shuffle', 'Shuffle'],
@@ -216,6 +221,17 @@ function peeksPage(settings) {
         'Show changes in the header of the open notch too');
     settings.bind('replace-osd', open, 'sensitive', Gio.SettingsBindFlags.GET);
     group.add(open);
+    const [hudStyle, syncHudStyle] = choiceRow('Volume and brightness style',
+        'In the closed notch', HUD_STYLES,
+        () => settings.get_string('hud-style'),
+        v => settings.set_string('hud-style', v));
+    settings.bind('replace-osd', hudStyle, 'sensitive', Gio.SettingsBindFlags.GET);
+    settings.connect('changed::hud-style', syncHudStyle);
+    group.add(hudStyle);
+    const percentage = switchRow(settings, 'hud-percentage', 'Percentage',
+        'Show the number next to the bar, in both styles');
+    settings.bind('replace-osd', percentage, 'sensitive', Gio.SettingsBindFlags.GET);
+    group.add(percentage);
     group.add(switchRow(settings, 'show-downloads', 'Downloads',
         'Show browser downloads while they run and when they finish'));
     group.add(switchRow(settings, 'show-battery-activity', 'Battery',

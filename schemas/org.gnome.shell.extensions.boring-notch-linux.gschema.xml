@@ -153,5 +153,17 @@
       <default>true</default>
       <summary>Show volume and brightness changes in the open notch's header</summary>
     </key>
+    <key name="hud-style" type="s">
+      <choices>
+        <choice value="inline"/>
+        <choice value="row"/>
+      </choices>
+      <default>"inline"</default>
+      <summary>How a level change shows in the closed notch: the bar beside the icon, or a row under the clock</summary>
+    </key>
+    <key name="hud-percentage" type="b">
+      <default>true</default>
+      <summary>Show the number next to the level bar</summary>
+    </key>
   </schema>
 </schemalist>

@@ -13,6 +13,7 @@ Branch `phase-3-cleanup-and-look`. Nothing pushed.
 | player-null crash guard | done | `daac177` — kill-mid-download clean, guarded call shapes don't throw |
 | C3 scrolling titles | done | `1cc8f4d` MarqueeLabel, two passes, verified in open player + peek |
 | C4 accent colour | done | see below |
+| C5 row-style HUD peek | done | see below |
 | C5 row-style HUD peek | todo | |
 | C6 draggable HUD bar | todo | decide at the end |
 | Today tab multi-event test | todo | 100% and 125% |
@@ -42,3 +43,19 @@ Branch `phase-3-cleanup-and-look`. Nothing pushed.
 - The checked tab's pill and `.bn-tab` are untouched (spec lists only the
   four spots). With album-art colouring on, the art tint still wins on the
   bars, as before.
+
+## C5 notes
+
+- `RowHudView` (`src/closedViews.js`): a `ClosedView` whose content hugs
+  the bottom of a 28-design-px growth under the clock (`showsClock` stays
+  true), icon at the left, a 220-design-px bar and the percentage at the
+  right. The same percentage/label logic as the inline style.
+- Schema `hud-style` (s: inline/row, inline default) and `hud-percentage`
+  (b, true, hides the number in both styles); rows on the Peeks page after
+  `Volume and brightness while open`, also gated on `replace-osd`.
+- `Island.showHud` picks the view per event from `hud-style`; switching
+  the setting changes the next peek. The peek is still one `hud` row per
+  level: repeated presses reported `queued: 1` and the bar updated in
+  place.
+- Idle CPU identical between the styles (0.0–0.7 both); the growth rides
+  the existing height spring.

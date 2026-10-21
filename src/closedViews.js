@@ -133,7 +133,67 @@ class InlineHudView extends ClosedView {
             this._bar.maximum_value = max;
             this._bar.overdrive_start = 1;
             this._bar.value = Math.max(0, Math.min(level, max));
+            this._value.visible = this._settings.get_boolean('hud-percentage');
             this._value.text = `${Math.round(level * 100)}`;
+        } else {
+            this._label.text = label ?? '';
+        }
+    }
+});
+
+/** Row style: the notch grows a row under the clock, icon one end, a long
+ *  bar and the percentage at the other. */
+export const RowHudView = GObject.registerClass(
+class RowHudView extends ClosedView {
+    _init(settings) {
+        super._init('bn-row-hud');
+        // The row's content hugs the bottom, leaving the top-bar height
+        // free for the clock.
+        this.left.y_align = Clutter.ActorAlign.END;
+        this.right.y_align = Clutter.ActorAlign.END;
+        this._icon = new St.Icon({style_class: 'bn-row-hud-icon'});
+        this.left.add_child(this._icon);
+
+        this._bar = new BarLevel.BarLevel({
+            style_class: 'bn-row-hud-bar',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        this._percentage = new St.Label({
+            style_class: 'bn-row-hud-percentage',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        this._label = new St.Label({
+            style_class: 'bn-row-hud-percentage',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        this.right.add_child(this._bar);
+        this.right.add_child(this._percentage);
+        this.right.add_child(this._label);
+        this._settings = settings;
+    }
+
+    sideWidth() {
+        return 155;
+    }
+
+    // One row of content, below the top bar the clock stays in.
+    extraHeight() {
+        return 28;
+    }
+
+    update(icon, label, level, maxLevel) {
+        this._icon.gicon = icon;
+        const hasLevel = typeof level === 'number';
+        this._bar.visible = hasLevel;
+        this._percentage.visible = hasLevel &&
+            this._settings.get_boolean('hud-percentage');
+        this._label.visible = !hasLevel;
+        if (hasLevel) {
+            const max = maxLevel > 0 ? maxLevel : 1;
+            this._bar.maximum_value = max;
+            this._bar.overdrive_start = 1;
+            this._bar.value = Math.max(0, Math.min(level, max));
+            this._percentage.text = `${Math.round(level * 100)}`;
         } else {
             this._label.text = label ?? '';
         }

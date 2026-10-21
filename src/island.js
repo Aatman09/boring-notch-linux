@@ -10,7 +10,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {getMixerControl} from 'resource:///org/gnome/shell/ui/status/volume.js';
 
-import {BatterySneakView, IconTextView, InlineHudView, LiveMediaView, MusicPeekView, ScreenshotPeekView} from './closedViews.js';
+import {BatterySneakView, IconTextView, InlineHudView, LiveMediaView, MusicPeekView, RowHudView, ScreenshotPeekView} from './closedViews.js';
 import {NotchShape} from './notchShape.js';
 import {OpenView} from './openView.js';
 import {Spring, SpringAnimator} from './spring.js';
@@ -187,7 +187,8 @@ class Island extends St.Widget {
         this._wallClock.bind_property('clock', this._clockLabel, 'text', GObject.BindingFlags.SYNC_CREATE);
 
         this._liveMedia = new LiveMediaView(audio);
-        this._hud = new InlineHudView();
+        this._hud = new InlineHudView(settings);
+        this._hudRow = new RowHudView(settings);
         // The screen recording is the most urgent live activity: it hogs the
         // notch over the timer, the downloads and the music.
         this._recordLive = new IconTextView('bn-record-live', RECORD_LIVE_SIDE);
@@ -209,7 +210,8 @@ class Island extends St.Widget {
             left.x_align = Clutter.ActorAlign.CENTER;
         }
         this._musicPeek = new MusicPeekView();
-        [this._recordLive, this._liveMedia, this._hud, this._batterySneak,
+        [this._recordLive, this._liveMedia, this._hud, this._hudRow,
+            this._batterySneak,
             this._timerLive, this._downloadLive, this._messageSneak,
             this._privacyPeek, this._screenshotPeek, this._bluetoothPeek,
             this._dndPeek, this._keyboardPeek, this._audioRoutePeek,
@@ -429,9 +431,13 @@ class Island extends St.Widget {
             return this._settings.get_boolean('hud-in-open-notch') &&
                 this._openView.showHud(icon, level, maxLevel);
         }
+        // The row style grows the notch a row under the clock instead of
+        // sharing the top-bar row with the clock.
+        const hud = this._settings.get_string('hud-style') === 'row'
+            ? this._hudRow : this._hud;
         this._showPeek({
-            view: this._hud,
-            apply: () => this._hud.update(icon, label, level, maxLevel),
+            view: hud,
+            apply: () => hud.update(icon, label, level, maxLevel),
             timeout: HUD_TIMEOUT_MS,
             priority: Priority.HUD,
             key: 'hud',

@@ -40,7 +40,8 @@ the pointer on it.
 - **Downloads:** browser downloads show while they run, and a peek with the
   file name when they finish. Click it to open the Downloads folder.
 - **Volume and brightness:** changes appear inside the notch instead of the
-  GNOME popup.
+  GNOME popup: as a bar beside the icon in the top row, or as a row grown
+  under the clock, with the percentage beside the bar.
 - **Battery:** a peek when a charger is plugged in or removed, and the charge
   level in the header. Also warnings when the battery runs low or finishes
   charging.
