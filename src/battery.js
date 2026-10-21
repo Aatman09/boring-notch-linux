@@ -43,11 +43,14 @@ const PowerProfilesProxy = Gio.DBusProxy.makeProxyWrapper(PowerProfilesIface);
 
 const UPOWER_BUS = 'org.freedesktop.UPower';
 const DISPLAY_DEVICE = '/org/freedesktop/UPower/devices/DisplayDevice';
-const POWER_PROFILES_BUS = 'org.freedesktop.UPower.PowerProfiles';
-const POWER_PROFILES_PATH = '/org/freedesktop/UPower/PowerProfiles';
+// power-profiles-daemon moved to UPower's bus and object names in
+// GNOME 43; older daemons answer only under the hadess ones.
+const POWER_PROFILES = [
+    ['org.freedesktop.UPower.PowerProfiles', '/org/freedesktop/UPower/PowerProfiles'],
+    ['net.hadess.PowerProfiles', '/net/hadess/PowerProfiles'],
+];
 const POWER_SAVER = 'power-saver';
 
-const DEVICE_TYPE_BATTERY = 2;
 const State = {CHARGING: 1, FULLY_CHARGED: 4, PENDING_CHARGE: 5};
 const PLUGGED_IN = [State.CHARGING, State.FULLY_CHARGED, State.PENDING_CHARGE];
 // UPower reports every level below "low" already at "discharging".
@@ -112,12 +115,14 @@ export class BatteryMonitor extends EventEmitter {
                 Gio.DBus.system, UPOWER_BUS, '/org/freedesktop/UPower',
                 this._cancellable);
             const [paths] = await upower.EnumerateDevicesAsync();
+            // UPower spells its batteries battery_…; the rest (mice, line
+            // power) have no capacity worth showing, so no proxy for them.
             for (const path of paths) {
-                if (path === DISPLAY_DEVICE)
+                if (!path.includes('/battery_'))
                     continue;
                 const device = await DeviceProxy.newAsync(
                     Gio.DBus.system, UPOWER_BUS, path, this._cancellable);
-                if (device.Type === DEVICE_TYPE_BATTERY && device.Capacity > 0) {
+                if (device.Capacity > 0) {
                     this._battery = device;
                     break;
                 }
@@ -127,10 +132,22 @@ export class BatteryMonitor extends EventEmitter {
                 console.warn(`Boring Notch: no battery health: ${e.message}`);
         }
 
+        // power-profiles-daemon moved to UPower's bus and object names in
+        // GNOME 43; older daemons answer only under the hadess ones.
+        for (const [bus, path] of POWER_PROFILES) {
+            try {
+                this._profiles = await PowerProfilesProxy.newAsync(
+                    Gio.DBus.system, bus, path,
+                    this._cancellable);
+                break;
+            } catch (e) {
+                if (e.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
+                    return;
+            }
+        }
         try {
-            this._profiles = await PowerProfilesProxy.newAsync(
-                Gio.DBus.system, POWER_PROFILES_BUS, POWER_PROFILES_PATH,
-                this._cancellable);
+            if (!this._profiles)
+                throw new Error('no power profile service');
             this._powerSaver = this._profiles.ActiveProfile === POWER_SAVER;
             this._profiles.connectObject('g-properties-changed', () => {
                 const saver = this._profiles.ActiveProfile === POWER_SAVER;
