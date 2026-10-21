@@ -115,7 +115,7 @@ function generalPage(settings) {
     timer.add(switchRow(settings, 'timer-modes', 'Stopwatch and Pomodoro',
         'Modes beside the countdown on the Timer tab. Only one runs at a time, and it shows in the closed notch.'));
     const work = spinRow(settings, 'pomodoro-work-minutes', 'Pomodoro work',
-        'Minutes of work in each Pomodoro. Work and break follow each other.', [1, 120, 1]);
+        'Minutes of work in each Pomodoro. When work ends, the break starts by itself, and after it the next work phase.', [1, 120, 1]);
     const rest = spinRow(settings, 'pomodoro-break-minutes', 'Pomodoro break',
         'Minutes of break in each Pomodoro', [1, 60, 1]);
     for (const row of [work, rest])

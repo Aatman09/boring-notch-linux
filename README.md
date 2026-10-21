@@ -42,7 +42,8 @@ the pointer on it.
 - **Timer:** the Timer tab has 1–25 minute presets. While it runs, the
   countdown shows in the closed notch, and it chimes when done. A stopwatch
   and a Pomodoro (25 minutes of work, then 5 of break, both lengths set in
-  Settings) sit beside it; whichever one runs shows in the closed notch.
+  Settings) sit beside it; the phases follow each other until it is reset,
+  and whichever mode runs shows in the closed notch.
 - **Downloads:** browser downloads show while they run, and a peek with the
   file name when they finish. Click it to open the Downloads folder.
 - **Volume and brightness:** changes appear inside the notch instead of the
