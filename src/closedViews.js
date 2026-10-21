@@ -262,16 +262,19 @@ class BatterySneakView extends ClosedView {
         return false;
     }
 
+    // levelMark is 'full', 'critical', 'low' or 'saver' for the power
+    // profile peek; without one the text says what the battery is doing.
     update(battery, levelMark = null) {
-        if (levelMark === 'full')
+        if (levelMark === 'saver')
+            this._status.text = battery.powerSaver ? 'Power saver on' : 'Power saver off';
+        else if (levelMark === 'full')
             this._status.text = 'Fully charged';
         else if (levelMark === 'critical')
             this._status.text = 'Critical battery';
         else if (levelMark)
             this._status.text = 'Low battery';
         else
-            this._status.text = battery.charging ? 'Charging'
-                : battery.pluggedIn ? 'Plugged in' : 'On battery';
+            this._status.text = battery.statusText;
         this._percent.text = `${battery.percentage}%`;
         this._icon.icon_name = battery.iconName;
         this._status.remove_style_class_name('bn-charging');
@@ -279,9 +282,9 @@ class BatterySneakView extends ClosedView {
         this._status.remove_style_class_name('bn-full');
         if (levelMark === 'full')
             this._status.add_style_class_name('bn-full');
-        else if (levelMark)
+        else if (levelMark && levelMark !== 'saver')
             this._status.add_style_class_name('bn-low');
-        else if (battery.pluggedIn)
+        else if (!levelMark && battery.pluggedIn)
             this._status.add_style_class_name('bn-charging');
     }
 });

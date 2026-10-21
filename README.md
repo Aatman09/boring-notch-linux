@@ -23,7 +23,9 @@ the pointer on it.
   dot when notifications are waiting. Clicking the notch or pressing Super+V
   opens the **Today** tab: GNOME's own notification list on the left, and the
   month calendar on the right with the selected day's events, which scroll
-  when a day is busy.
+  when a day is busy. Each event has a bar in its calendar's colour, and
+  all-day events can be hidden. With nothing playing, the Home tab names the
+  next event today under the date, with its time.
 - **Notification peeks:** new notifications slide out of the notch instead of
   showing GNOME banners. Click one to open it, or press one of its buttons
   (up to two, such as Reply) to run that action. Critical notifications still
@@ -49,7 +51,9 @@ the pointer on it.
   the volume or the screen brightness.
 - **Battery:** a peek when a charger is plugged in or removed, and the charge
   level in the header. Also warnings when the battery runs low or finishes
-  charging.
+  charging. Click the battery in the open notch's header for its status, time
+  to full or empty, health and energy rate, and whether Power Saver is on. A
+  peek says when the power profile changes to or from Power Saver.
 - **Privacy:** small dots beside the clock when the microphone, camera or
   screen sharing is in use, and a peek naming the app. It only reads which
   apps are using them; nothing is recorded.

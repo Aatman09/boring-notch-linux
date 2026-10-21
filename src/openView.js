@@ -2,6 +2,7 @@ import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
+import Pango from 'gi://Pango';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
 
@@ -9,6 +10,8 @@ import * as BarLevel from 'resource:///org/gnome/shell/ui/barLevel.js';
 import * as Calendar from 'resource:///org/gnome/shell/ui/calendar.js';
 import * as Slider from 'resource:///org/gnome/shell/ui/slider.js';
 
+import {BatteryPanel} from './batteryPanel.js';
+import {CalendarSources} from './calendarSources.js';
 import {AlbumArt, MarqueeLabel, formatTime} from './widgets.js';
 
 const formatSeconds = s => formatTime(s * GLib.USEC_PER_SEC);
@@ -53,9 +56,12 @@ function iconButton(iconName, styleClass, callback) {
 
 /** BoringHeader: tabs on the left, settings and battery on the right. */
 const Header = GObject.registerClass({
-    Signals: {'tab-selected': {param_types: [GObject.TYPE_STRING]}},
+    Signals: {
+        'tab-selected': {param_types: [GObject.TYPE_STRING]},
+        'battery-clicked': {},
+    },
 }, class Header extends St.BoxLayout {
-    _init(battery, dndSettings, openPreferences) {
+    _init(battery, dndSettings, openPreferences, settings) {
         super._init({style_class: 'bn-header', x_expand: true});
         this._battery = battery;
 
@@ -105,7 +111,15 @@ const Header = GObject.registerClass({
         this._batteryIcon = new St.Icon({style_class: 'bn-header-battery-icon'});
         this._batteryBox.add_child(this._batteryLabel);
         this._batteryBox.add_child(this._batteryIcon);
-        this.add_child(this._batteryBox);
+        // A click opens the battery details, when the setting allows it.
+        this._batteryButton = new St.Button({
+            style_class: 'bn-header-battery-button',
+            can_focus: true,
+            child: this._batteryBox,
+        });
+        this._batteryButton.connect('clicked', () => this.emit('battery-clicked'));
+        settings.bind('battery-details', this._batteryButton, 'reactive', Gio.SettingsBindFlags.GET);
+        this.add_child(this._batteryButton);
 
         battery.connectObject('changed', () => this._syncBattery(), this);
         this._syncBattery();
@@ -123,7 +137,7 @@ const Header = GObject.registerClass({
         this._hudBar.value = Math.max(0, Math.min(level, max));
         this._hud.show();
         this._gear.hide();
-        this._batteryBox.hide();
+        this._batteryButton.hide();
         this._clearHudTimeout();
         this._hudTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, HEADER_HUD_MS, () => {
             this._hudTimeoutId = 0;
@@ -155,7 +169,7 @@ const Header = GObject.registerClass({
     }
 
     _syncBattery() {
-        this._batteryBox.visible = this._battery.present && !this._hud.visible;
+        this._batteryButton.visible = this._battery.present && !this._hud.visible;
         this._batteryLabel.text = `${this._battery.percentage}%`;
         this._batteryIcon.icon_name = this._battery.iconName;
     }
@@ -392,16 +406,25 @@ class IdleView extends St.BoxLayout {
             text: 'Play something to see it here',
             x_align: Clutter.ActorAlign.CENTER,
         });
+        this._next = new St.Label({style_class: 'bn-idle-next', x_align: Clutter.ActorAlign.CENTER, visible: false});
+        this._next.clutter_text.ellipsize = Pango.EllipsizeMode.END;
         this.add_child(this._time);
         this.add_child(this._date);
+        this.add_child(this._next);
         this.add_child(hint);
         this.tick();
     }
 
-    tick() {
+    // `next` is the event to name under the date, or null for none.
+    tick(next = null) {
         const now = GLib.DateTime.new_now_local();
         this._time.text = now.format('%H:%M');
         this._date.text = now.format('%A, %e %B').replace(/\s+/g, ' ');
+        this._next.visible = next !== null;
+        if (next) {
+            const start = GLib.DateTime.new_from_unix_local(next.date.getTime() / 1000);
+            this._next.text = `Up next  ${start.format('%H:%M')}  ${next.summary}`;
+        }
     }
 });
 
@@ -412,9 +435,11 @@ class IdleView extends St.BoxLayout {
  */
 const TodayView = GObject.registerClass(
 class TodayView extends St.BoxLayout {
-    _init() {
+    _init(settings) {
         super._init({style_class: 'bn-today', x_expand: true, y_expand: true});
         this.layout_manager.homogeneous = true;
+        this._settings = settings;
+        this._sources = new CalendarSources();
 
         this._messages = new Calendar.CalendarMessageList();
         this._messages.add_style_class_name('bn-messages');
@@ -473,7 +498,24 @@ class TodayView extends St.BoxLayout {
 
         this._date = new Date();
         this._eventSource.connectObject('changed', () => this._syncEvents(), this);
-        this.connect('destroy', () => this._eventSource.destroy());
+        this._sources.connectObject('changed', () => this._syncEvents(), this);
+        settings.connectObject(
+            'changed::hide-all-day-events', () => this._syncEvents(),
+            'changed::event-colors', () => this._syncEvents(),
+            this);
+        this.connect('destroy', () => {
+            this._eventSource.destroy();
+            this._sources.destroy();
+        });
+    }
+
+    // The next timed event today that has not started yet, for the Home
+    // tab, or null. It reads the events the calendar has loaded.
+    nextEvent() {
+        const now = new Date();
+        const end = new Date(now);
+        end.setHours(24, 0, 0, 0);
+        return this._eventSource.getEvents(now, end).find(event => event.date > now) ?? null;
     }
 
     // Back to today each time the tab opens.
@@ -498,9 +540,20 @@ class TodayView extends St.BoxLayout {
 
         this._events.destroy_all_children();
         const events = this._eventSource.getEvents(begin, end);
+        const showColors = this._settings.get_boolean('event-colors');
         for (const event of events) {
-            const row = new St.BoxLayout({style_class: 'bn-event'});
             const allDay = event.date <= begin && event.end >= end;
+            if (allDay && this._settings.get_boolean('hide-all-day-events'))
+                continue;
+            const row = new St.BoxLayout({style_class: 'bn-event'});
+            // A bar in the calendar's colour. Without a colour it is clear,
+            // so the times still line up.
+            if (showColors) {
+                row.add_child(new St.Widget({
+                    style_class: 'bn-event-color',
+                    style: `background-color: ${this._sources.colorOf(event.id) ?? 'transparent'};`,
+                }));
+            }
             const start = GLib.DateTime.new_from_unix_local(event.date.getTime() / 1000);
             row.add_child(new St.Label({
                 style_class: 'bn-event-time',
@@ -509,7 +562,7 @@ class TodayView extends St.BoxLayout {
             row.add_child(new St.Label({style_class: 'bn-event-summary', text: event.summary, x_expand: true}));
             this._events.add_child(row);
         }
-        if (events.length === 0)
+        if (this._events.get_n_children() === 0)
             this._events.add_child(new St.Label({style_class: 'bn-event-empty', text: 'No events'}));
     }
 });
@@ -663,9 +716,11 @@ export const OpenView = GObject.registerClass({
 }, class OpenView extends St.Widget {
     _init({settings, battery, timer, stopwatch, pomodoro, dndSettings, openPreferences}) {
         super._init({style_class: 'bn-open', opacity: 0});
+        this._settings = settings;
 
-        this._header = new Header(battery, dndSettings, openPreferences);
+        this._header = new Header(battery, dndSettings, openPreferences, settings);
         this._header.connect('tab-selected', (_h, id) => this.emit('tab-selected', id));
+        this._header.connect('battery-clicked', () => this._toggleBatteryPanel());
         this.add_child(this._header);
 
         this._player = new MediaPlayer(settings);
@@ -673,9 +728,11 @@ export const OpenView = GObject.registerClass({
         const home = new St.Widget({layout_manager: new Clutter.BinLayout()});
         home.add_child(this._player);
         home.add_child(this._idle);
-        this._today = new TodayView();
+        this._today = new TodayView(settings);
         this._pages = {home, today: this._today, timer: new TimerView({settings, timer, stopwatch, pomodoro})};
         Object.values(this._pages).forEach(page => this.add_child(page));
+        this._batteryPanel = new BatteryPanel(battery);
+        this.add_child(this._batteryPanel);
 
         this._sizes = null;
         this.update(null, null);
@@ -689,6 +746,7 @@ export const OpenView = GObject.registerClass({
             page.translation_y = pageId === id ? 0 : PARKED_Y;
         this._header.setActiveTab(id);
         this._layoutHeader();
+        this._batteryPanel.hide();
         // Titles only scroll while their page is in view.
         this._player.setScrolling(id === 'home');
         if (id === 'today')
@@ -718,6 +776,7 @@ export const OpenView = GObject.registerClass({
             page.set_size(width, Math.max(0, height - headerHeight));
         }
         this._layoutHeader();
+        this._layoutBatteryPanel();
     }
 
     _layoutHeader() {
@@ -726,6 +785,28 @@ export const OpenView = GObject.registerClass({
         const [width] = this._sizes[this._tab];
         this._header.set_position(0, 0);
         this._header.set_size(width, this._headerHeight);
+    }
+
+    // The battery panel covers the page under the header, as the page does.
+    _layoutBatteryPanel() {
+        if (!this._sizes)
+            return;
+        const [width, height] = this._sizes[this._tab];
+        this._batteryPanel.set_position(0, this._headerHeight);
+        this._batteryPanel.set_size(width, Math.max(0, height - this._headerHeight));
+    }
+
+    _toggleBatteryPanel() {
+        if (this._batteryPanel.visible) {
+            this._batteryPanel.hide();
+        } else {
+            this._layoutBatteryPanel();
+            this._batteryPanel.open();
+        }
+    }
+
+    closeBatteryPanel() {
+        this._batteryPanel.hide();
     }
 
     get busy() {
@@ -763,6 +844,6 @@ export const OpenView = GObject.registerClass({
         if (this._player.visible)
             this._player.tick();
         else
-            this._idle.tick();
+            this._idle.tick(this._settings.get_boolean('up-next') ? this._today.nextEvent() : null);
     }
 });

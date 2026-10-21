@@ -290,6 +290,27 @@ function peeksPage(settings) {
     return page;
 }
 
+function informationPage(settings) {
+    const page = new Adw.PreferencesPage({title: 'Information', icon_name: 'dialog-information-symbolic'});
+
+    const battery = new Adw.PreferencesGroup({title: 'Battery'});
+    battery.add(switchRow(settings, 'battery-details', 'Battery details',
+        'Click the battery in the header of the open notch to see its charge, time left, health and power saver state'));
+    battery.add(switchRow(settings, 'power-saver-peek', 'Power saver peek',
+        'Peek when the power profile changes to or from Power Saver'));
+    page.add(battery);
+
+    const calendar = new Adw.PreferencesGroup({title: 'Calendar'});
+    calendar.add(switchRow(settings, 'event-colors', 'Calendar colours',
+        'Show a bar in each calendar\'s colour beside its events in the Today tab'));
+    calendar.add(switchRow(settings, 'hide-all-day-events', 'Hide all-day events',
+        'Leave the all-day events out of the Today tab\'s list'));
+    calendar.add(switchRow(settings, 'up-next', 'Up next',
+        'Name the next event today, with its time, on the Home tab when nothing is playing'));
+    page.add(calendar);
+    return page;
+}
+
 function aboutPage(metadata) {
     const page = new Adw.PreferencesPage({title: 'About', icon_name: 'help-about-symbolic'});
     const group = new Adw.PreferencesGroup({
@@ -311,6 +332,7 @@ export default class BoringNotchPreferences extends ExtensionPreferences {
         window.add(generalPage(settings));
         window.add(musicPage(settings));
         window.add(peeksPage(settings));
+        window.add(informationPage(settings));
         window.add(aboutPage(this.metadata));
     }
 }
