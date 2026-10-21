@@ -602,6 +602,15 @@
   font-weight: 500;
 }
 
+/* The lyric line under the artist on Home. */
+
+.bn-lyric {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(235, 235, 240, 0.6);
+  margin-top: 2px;
+}
+
 /* System tab */
 
 .bn-system {

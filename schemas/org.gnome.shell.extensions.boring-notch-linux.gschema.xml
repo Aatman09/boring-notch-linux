@@ -224,6 +224,10 @@
       <default>15</default>
       <summary>How many minutes before an event its countdown starts showing in the closed notch</summary>
     </key>
+    <key name="show-lyrics" type="b">
+      <default>false</default>
+      <summary>Show the synced lyrics line under the artist on the Home tab, looked up on lrclib.net with each track's title, artist, album and length</summary>
+    </key>
     <key name="show-system-tab" type="b">
       <default>false</default>
       <summary>Show a System tab in the open notch with processor, memory, network and temperature readings, sampled only while the tab is on screen</summary>

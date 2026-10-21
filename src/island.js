@@ -63,8 +63,8 @@ export const Island = GObject.registerClass(
 class Island extends St.Widget {
     // `sources` holds the extension's monitors and models, by name: media,
     // battery, timer, stopwatch, pomodoro, downloads, audio, privacy,
-    // bluetooth, keyboard, recording, audioRoute, system, artCache and
-    // artColor.
+    // bluetooth, keyboard, recording, audioRoute, system, lyrics, artCache
+    // and artColor.
     _init({settings, zoom, sources, openPreferences}) {
         super._init({
             name: 'boring-notch',
@@ -83,6 +83,7 @@ class Island extends St.Widget {
         this._audioRoute = sources.audioRoute;
         this._artCache = sources.artCache;
         this._artColor = sources.artColor;
+        this._lyrics = sources.lyrics;
         this._state = State.CLOSED;
         this._tab = 'home';
         this._peekQueue = new PeekQueue({
@@ -192,6 +193,7 @@ class Island extends St.Widget {
             stopwatch: sources.stopwatch,
             pomodoro: sources.pomodoro,
             system: sources.system,
+            lyrics: sources.lyrics,
             dndSettings: this._dndSettings,
             openPreferences: () => {
                 this.close();
@@ -231,6 +233,7 @@ class Island extends St.Widget {
             'changed::show-privacy-indicators', () => this._syncPrivacyDots(),
             'changed::show-dnd', () => this._syncMoon(),
             'changed::show-system-tab', () => this._syncSystemTab(),
+            'changed::show-lyrics', () => this._syncMedia(),
             this);
         zoom.connectObject('changed', () => this._relayout(true), this);
         this._clockLabel.connect('notify::text', () => this._relayout());
@@ -514,6 +517,7 @@ class Island extends St.Widget {
             });
         }
 
+        this._lyrics.follow(this._settings.get_boolean('show-lyrics') ? player : null);
         this._syncArt(player);
         this._liveMedia.update(this._artUri);
         this._syncVisualizer();

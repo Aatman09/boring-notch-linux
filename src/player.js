@@ -55,7 +55,7 @@ class ArtLayout extends Clutter.LayoutManager {
 /** The music player from NotchHomeView. */
 export const MediaPlayer = GObject.registerClass(
 class MediaPlayer extends St.BoxLayout {
-    _init(settings) {
+    _init(settings, lyrics) {
         super._init({style_class: 'bn-player', x_expand: true, y_expand: true});
 
         // The cover, with a blurred enlarged copy glowing behind it while
@@ -92,8 +92,12 @@ class MediaPlayer extends St.BoxLayout {
 
         this._title = new MarqueeLabel('bn-title');
         this._artist = new MarqueeLabel('bn-artist');
+        // The lyric line that is sung now, when the setting shows lyrics.
+        this._lyric = new St.Label({style_class: 'bn-lyric', visible: false});
+        this._lyric.clutter_text.ellipsize = Pango.EllipsizeMode.END;
         column.add_child(this._title);
         column.add_child(this._artist);
+        column.add_child(this._lyric);
 
         this._slider = new Slider.Slider(0);
         this._slider.add_style_class_name('bn-progress');
@@ -126,6 +130,7 @@ class MediaPlayer extends St.BoxLayout {
         this._controls = new St.BoxLayout({style_class: 'bn-controls', x_align: Clutter.ActorAlign.CENTER});
         column.add_child(this._controls);
         this._settings = settings;
+        this._lyrics = lyrics;
         this._buttons = {};
         this._scrollOpen = false;
         this._playing = null;
@@ -169,6 +174,9 @@ class MediaPlayer extends St.BoxLayout {
         this._syncButtons(player);
         this._syncPlaying(player.playing);
         this.tick();
+        // A new track's lyric goes at once, even while paused, where tick()
+        // would leave the old line showing.
+        this._syncLyric(player.position);
     }
 
     // The glow shows while the track plays; paused, the cover eases to a
@@ -220,6 +228,16 @@ class MediaPlayer extends St.BoxLayout {
         this._slider.value = length > 0 ? position / length : 0;
         this._syncing = false;
         this._syncTimes(position);
+        if (this._player.playing)
+            this._syncLyric(position);
+    }
+
+    _syncLyric(position) {
+        const line = this._lyrics.lineAt(position);
+        if (line === this._lyric.text)
+            return;
+        this._lyric.text = line;
+        this._lyric.visible = line !== '';
     }
 
     _syncTimes(position) {
@@ -247,7 +265,7 @@ class MediaPlayer extends St.BoxLayout {
     // a plain inline style is enough.
     setColor(rgb) {
         const color = rgb ? `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})` : null;
-        for (const label of [this._artist, this._elapsed, this._remaining])
+        for (const label of [this._artist, this._lyric, this._elapsed, this._remaining])
             label.style = color ? `color: ${color};` : null;
         this._slider.style = color
             ? `-barlevel-active-background-color: ${color};`

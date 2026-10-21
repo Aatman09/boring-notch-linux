@@ -24,7 +24,7 @@ const PARKED_Y = -10000;
 export const OpenView = GObject.registerClass({
     Signals: {'tab-selected': {param_types: [GObject.TYPE_STRING]}},
 }, class OpenView extends St.Widget {
-    _init({settings, battery, timer, stopwatch, pomodoro, system, dndSettings, openPreferences}) {
+    _init({settings, battery, timer, stopwatch, pomodoro, system, lyrics, dndSettings, openPreferences}) {
         super._init({style_class: 'bn-open', opacity: 0});
         this._settings = settings;
         this._sysmon = system;
@@ -34,7 +34,7 @@ export const OpenView = GObject.registerClass({
         this._header.connect('battery-clicked', () => this._toggleBatteryPanel());
         this.add_child(this._header);
 
-        this._player = new MediaPlayer(settings);
+        this._player = new MediaPlayer(settings, lyrics);
         this._idle = new IdleView();
         const home = new St.Widget({layout_manager: new Clutter.BinLayout()});
         home.add_child(this._player);

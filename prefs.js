@@ -208,6 +208,11 @@ function musicPage(settings) {
     players.add(ignored);
     page.add(players);
 
+    const lyrics = new Adw.PreferencesGroup({title: 'Lyrics'});
+    lyrics.add(switchRow(settings, 'show-lyrics', 'Synced lyrics',
+        'Show the line being sung under the artist on the Home tab. Each track\'s title, artist, album and length are sent to lrclib.net (https://lrclib.net/api/get) to find its lyrics. Off by default.'));
+    page.add(lyrics);
+
     const player = new Adw.PreferencesGroup({title: 'Player buttons', description: 'From left to right'});
     const syncs = [];
     for (let slot = 0; slot < PLAYER_SLOTS; slot++) {

@@ -14,6 +14,7 @@ import {BluetoothMonitor} from './src/bluetooth.js';
 import {DownloadWatcher} from './src/downloads.js';
 import {Island} from './src/island.js';
 import {KeyboardMonitor} from './src/keyboard.js';
+import {LyricsService} from './src/lyrics.js';
 import {MediaManager} from './src/media.js';
 import {PrivacyMonitor} from './src/privacy.js';
 import {RecordingMonitor} from './src/recording.js';
@@ -104,6 +105,7 @@ export default class BoringNotchExtension extends Extension {
             recording: new RecordingMonitor(),
             audioRoute: new AudioRouteMonitor(),
             system: new SystemMonitor(),
+            lyrics: new LyricsService(),
         };
 
         this._island = new Island({
