@@ -175,6 +175,18 @@
       <default>5</default>
       <summary>Length of a Pomodoro break, in minutes</summary>
     </key>
+    <key name="player-selection" type="b">
+      <default>true</default>
+      <summary>Use the preferred player and the ignored players below when choosing which music player the notch shows</summary>
+    </key>
+    <key name="preferred-player" type="s">
+      <default>""</default>
+      <summary>Part of the name or bus name of the player the notch follows when it plays; empty for none</summary>
+    </key>
+    <key name="ignored-players" type="s">
+      <default>""</default>
+      <summary>Parts of the names or bus names of players the notch ignores, separated by commas</summary>
+    </key>
     <key name="hud-percentage" type="b">
       <default>true</default>
       <summary>Show the number next to the level bar</summary>

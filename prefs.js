@@ -195,6 +195,19 @@ function musicPage(settings) {
         'Seconds the music stays in the closed notch after pausing', [0, 10, 1]));
     page.add(closed);
 
+    const players = new Adw.PreferencesGroup({title: 'Players'});
+    players.add(switchRow(settings, 'player-selection', 'Preferred and ignored players',
+        'Follow the preferred player when it plays, and never show the ignored ones. Match part of a player\'s name, such as vlc, and separate several ignored names with commas.'));
+    const preferred = new Adw.EntryRow({title: 'Preferred player'});
+    settings.bind('preferred-player', preferred, 'text', Gio.SettingsBindFlags.DEFAULT);
+    const ignored = new Adw.EntryRow({title: 'Ignored players'});
+    settings.bind('ignored-players', ignored, 'text', Gio.SettingsBindFlags.DEFAULT);
+    for (const row of [preferred, ignored])
+        settings.bind('player-selection', row, 'sensitive', Gio.SettingsBindFlags.GET);
+    players.add(preferred);
+    players.add(ignored);
+    page.add(players);
+
     const player = new Adw.PreferencesGroup({title: 'Player buttons', description: 'From left to right'});
     const syncs = [];
     for (let slot = 0; slot < PLAYER_SLOTS; slot++) {

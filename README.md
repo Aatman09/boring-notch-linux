@@ -34,7 +34,8 @@ the pointer on it.
   artists slide through twice instead of being cut short. The Home tab has the
   full player with seek bar, shuffle, previous,
   play/pause, next and repeat. This works with any MPRIS player (Spotify,
-  Firefox, Chromium, Rhythmbox, VLC and most others).
+  Firefox, Chromium, Rhythmbox, VLC and most others). In Settings you can
+  name a preferred player, and list players the notch should ignore.
 - **Timer:** the Timer tab has 1–25 minute presets. While it runs, the
   countdown shows in the closed notch, and it chimes when done. A stopwatch
   and a Pomodoro (25 minutes of work, then 5 of break, both lengths set in
