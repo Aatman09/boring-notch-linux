@@ -18,7 +18,7 @@ import {MediaManager} from './src/media.js';
 import {PrivacyMonitor} from './src/privacy.js';
 import {RecordingMonitor} from './src/recording.js';
 import {ScaledStylesheet} from './src/style.js';
-import {Pomodoro, Stopwatch, Timer} from './src/timer.js';
+import {exclusive, Pomodoro, Stopwatch, Timer} from './src/timer.js';
 import {Zoom} from './src/zoom.js';
 
 /**
@@ -86,6 +86,8 @@ export default class BoringNotchExtension extends Extension {
         this._timer = new Timer();
         this._stopwatch = new Stopwatch();
         this._pomodoro = new Pomodoro(this._settings);
+        // The notch shows one timer figure: starting a mode resets the others.
+        exclusive(this._timer, this._stopwatch, this._pomodoro);
         this._downloads = new DownloadWatcher();
         this._artCache = new ArtCache();
         this._artColor = new ArtColorLoader();

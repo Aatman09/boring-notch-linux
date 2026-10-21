@@ -649,12 +649,8 @@ class TimerView extends St.BoxLayout {
         return this._models[this._mode];
     }
 
-    // Stops the other timers, then starts this one from its beginning.
+    // Starting one mode resets the others, wherever the start comes from.
     _start() {
-        for (const [mode, model] of Object.entries(this._models)) {
-            if (mode !== this._mode)
-                model.reset();
-        }
         if (this._mode === 'timer')
             this._models.timer.start(this._minutes * 60);
         else
