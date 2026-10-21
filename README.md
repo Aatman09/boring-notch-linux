@@ -49,6 +49,12 @@ the pointer on it.
   down once a minute, and clicking it opens the Today tab.
 - **Downloads:** browser downloads show while they run, and a peek with the
   file name when they finish. Click it to open the Downloads folder.
+- **Shelf:** the Shelf tab holds up to 30 files, newest first. Paste the files
+  copied in your file manager, and finished downloads and new screenshots are
+  added by themselves (a setting). Each row opens the file, shows it in the
+  file manager, or removes it. The shelf keeps links to the files, never
+  copies, in the cache folder; a file that has been moved or deleted leaves
+  the list when the tab opens.
 - **Volume and brightness:** changes appear inside the notch instead of the
   GNOME popup: as a bar beside the icon in the top row, or as a row grown
   under the clock, with the percentage beside the bar. Drag the bar to set

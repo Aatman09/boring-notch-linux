@@ -14,6 +14,7 @@ const TABS = [
     {id: 'home', label: 'Home', icon: 'user-home-symbolic'},
     {id: 'today', label: 'Today', icon: 'x-office-calendar-symbolic'},
     {id: 'timer', label: 'Timer', icon: 'alarm-symbolic'},
+    {id: 'shelf', label: 'Shelf', icon: 'folder-symbolic', setting: 'show-shelf'},
 ];
 
 /** BoringHeader: tabs on the left, settings and battery on the right. */
@@ -28,12 +29,14 @@ export const Header = GObject.registerClass({
         this._battery = battery;
 
         this._tabs = new Map();
-        for (const {id, label, icon} of TABS) {
+        for (const {id, label, icon, setting} of TABS) {
             const box = new St.BoxLayout({style_class: 'bn-tab-content'});
             box.add_child(new St.Icon({icon_name: icon, style_class: 'bn-tab-icon'}));
             box.add_child(new St.Label({text: label, y_align: Clutter.ActorAlign.CENTER}));
             const tab = new St.Button({style_class: 'bn-tab', child: box, can_focus: true});
             tab.connect('clicked', () => this.emit('tab-selected', id));
+            if (setting)
+                settings.bind(setting, tab, 'visible', Gio.SettingsBindFlags.GET);
             this._tabs.set(id, tab);
             this.add_child(tab);
         }

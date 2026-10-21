@@ -6,6 +6,7 @@ import St from 'gi://St';
 import {BatteryPanel} from './batteryPanel.js';
 import {Header} from './header.js';
 import {IdleView, MediaPlayer} from './player.js';
+import {ShelfView} from './shelfView.js';
 import {TimerView} from './timerView.js';
 import {TodayView} from './todayView.js';
 
@@ -23,7 +24,7 @@ const PARKED_Y = -10000;
 export const OpenView = GObject.registerClass({
     Signals: {'tab-selected': {param_types: [GObject.TYPE_STRING]}},
 }, class OpenView extends St.Widget {
-    _init({settings, battery, timer, stopwatch, pomodoro, dndSettings, openPreferences}) {
+    _init({settings, battery, timer, stopwatch, pomodoro, shelf, dndSettings, openPreferences}) {
         super._init({style_class: 'bn-open', opacity: 0});
         this._settings = settings;
 
@@ -38,7 +39,12 @@ export const OpenView = GObject.registerClass({
         home.add_child(this._player);
         home.add_child(this._idle);
         this._today = new TodayView(settings);
-        this._pages = {home, today: this._today, timer: new TimerView({settings, timer, stopwatch, pomodoro})};
+        this._pages = {
+            home,
+            today: this._today,
+            timer: new TimerView({settings, timer, stopwatch, pomodoro}),
+            shelf: new ShelfView({shelf}),
+        };
         Object.values(this._pages).forEach(page => this.add_child(page));
         this._tab = 'home';
         this._batteryPanel = new BatteryPanel(battery);
@@ -61,6 +67,8 @@ export const OpenView = GObject.registerClass({
         this._player.setScrolling(id === 'home');
         if (id === 'today')
             this._today.reset();
+        if (id === 'shelf')
+            this._pages.shelf.reset();
     }
 
     setUnread(unread) {

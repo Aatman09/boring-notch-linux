@@ -224,5 +224,13 @@
       <default>15</default>
       <summary>How many minutes before an event its countdown starts showing in the closed notch</summary>
     </key>
+    <key name="show-shelf" type="b">
+      <default>true</default>
+      <summary>Show the Shelf tab in the open notch, with the files you pasted, downloaded or captured</summary>
+    </key>
+    <key name="shelf-auto-add" type="b">
+      <default>true</default>
+      <summary>Add finished downloads and new screenshots to the shelf</summary>
+    </key>
   </schema>
 </schemalist>

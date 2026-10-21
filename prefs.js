@@ -232,6 +232,21 @@ function musicPage(settings) {
     return page;
 }
 
+function shelfPage(settings) {
+    const page = new Adw.PreferencesPage({title: 'Shelf', icon_name: 'folder-symbolic'});
+
+    const shelf = new Adw.PreferencesGroup({
+        title: 'Shelf',
+        description: 'Files are kept as links to where they are, never copied. The list is saved in the cache folder.',
+    });
+    shelf.add(switchRow(settings, 'show-shelf', 'Shelf tab',
+        'Show the Shelf tab in the open notch'));
+    shelf.add(switchRow(settings, 'shelf-auto-add', 'Add downloads and screenshots',
+        'Add each finished download and each new screenshot to the shelf'));
+    page.add(shelf);
+    return page;
+}
+
 function peeksPage(settings) {
     const page = new Adw.PreferencesPage({title: 'Peeks', icon_name: 'preferences-system-notifications-symbolic'});
 
@@ -337,6 +352,7 @@ export default class BoringNotchPreferences extends ExtensionPreferences {
         window._settings = settings;
         window.add(generalPage(settings));
         window.add(musicPage(settings));
+        window.add(shelfPage(settings));
         window.add(peeksPage(settings));
         window.add(informationPage(settings));
         window.add(aboutPage(this.metadata));

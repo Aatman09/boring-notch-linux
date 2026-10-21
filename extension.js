@@ -17,6 +17,7 @@ import {KeyboardMonitor} from './src/keyboard.js';
 import {MediaManager} from './src/media.js';
 import {PrivacyMonitor} from './src/privacy.js';
 import {RecordingMonitor} from './src/recording.js';
+import {Shelf} from './src/shelf.js';
 import {ScaledStylesheet} from './src/style.js';
 import {exclusive, Pomodoro, Stopwatch, Timer} from './src/timer.js';
 import {Zoom} from './src/zoom.js';
@@ -87,13 +88,15 @@ export default class BoringNotchExtension extends Extension {
         // The notch shows one timer figure: starting a mode resets the others.
         exclusive(timer, stopwatch, pomodoro);
         // Everything the notch watches or drives; each has destroy().
+        const downloads = new DownloadWatcher();
         this._sources = {
             media: new MediaManager(this._settings),
             battery: new BatteryMonitor(),
             timer,
             stopwatch,
             pomodoro,
-            downloads: new DownloadWatcher(),
+            downloads,
+            shelf: new Shelf({settings: this._settings, downloads}),
             artCache: new ArtCache(),
             artColor: new ArtColorLoader(),
             audio: new AudioLevels(),
