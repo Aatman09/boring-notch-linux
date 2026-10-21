@@ -295,13 +295,14 @@
   background-color: #2c2c2e;
 }
 
-/* The blurred copy of the cover behind it. It is painted from JS with the
-   same image and scaled 1.3 x 1.4 about its centre. */
+/* The blurred copy of the cover behind it. The widget is larger than the
+   cover and the picture sits in its middle, so the blur has transparent
+   room to fade into instead of ending at a hard edge. */
 .bn-art-glow {
-  width: 90px;
-  height: 90px;
-  border-radius: 13px;
-  background-size: cover;
+  width: 170px;
+  height: 170px;
+  background-size: 110px 110px;
+  background-position: 30px 30px;
 }
 
 .bn-art-placeholder {

@@ -176,9 +176,8 @@ class MediaPlayer extends St.BoxLayout {
             style_class: 'bn-art-glow',
             visible: false,
             opacity: 128,
-            pivot_point: new Graphene.Point({x: 0.5, y: 0.5}),
-            scale_x: 1.3,
-            scale_y: 1.4,
+            x_align: Clutter.ActorAlign.CENTER,
+            y_align: Clutter.ActorAlign.CENTER,
         });
         this._glow.add_effect(new Shell.BlurEffect({radius: 40, mode: Shell.BlurMode.ACTOR}));
         this._art = new AlbumArt('bn-art');
