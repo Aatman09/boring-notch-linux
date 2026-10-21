@@ -224,5 +224,13 @@
       <default>15</default>
       <summary>How many minutes before an event its countdown starts showing in the closed notch</summary>
     </key>
+    <key name="allow-external-activities" type="b">
+      <default>true</default>
+      <summary>Let other programs show live activities and peeks through the D-Bus API on org.gnome.Shell.Extensions.BoringNotch</summary>
+    </key>
+    <key name="show-app-progress" type="b">
+      <default>true</default>
+      <summary>Show the progress that apps report through the Unity LauncherEntry API (browser downloads, file copies) as a live activity</summary>
+    </key>
   </schema>
 </schemalist>

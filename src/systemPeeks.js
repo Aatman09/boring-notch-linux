@@ -36,7 +36,7 @@ export class SystemPeeks {
         this._host = host;
         this._battery = sources.battery;
         this._connected = [sources.battery, sources.privacy, sources.bluetooth,
-            sources.keyboard, sources.audioRoute, sources.downloads, dndSettings];
+            sources.keyboard, sources.audioRoute, sources.downloads, sources.activities, dndSettings];
         this._downloads = sources.downloads;
         this._dndSettings = dndSettings;
         this._dnd = !dndSettings.get_boolean('show-banners');
@@ -52,9 +52,10 @@ export class SystemPeeks {
         this._dndView = new IconTextView('bn-dnd-peek', 110, {peek: true});
         this._keyboardView = new IconTextView('bn-keyboard-peek', 105, {peek: true});
         this._audioRouteView = new IconTextView('bn-audio-route', 110, {peek: true, centred: true});
+        this._activityView = new IconTextView('bn-activity-peek', 130, {peek: true});
         this.views = [this.batteryView, this.messageView, this._privacyView,
             this._screenshotView, this._bluetoothView, this._dndView,
-            this._keyboardView, this._audioRouteView];
+            this._keyboardView, this._audioRouteView, this._activityView];
 
         sources.battery.connectObject(
             'plugged', () => this._onPlugged(),
@@ -76,6 +77,8 @@ export class SystemPeeks {
             (_r, route) => this._onAudioRouteChanged(route), this);
         sources.downloads.connectObject('finished',
             (_d, file) => this._onDownloadFinished(file), this);
+        sources.activities.connectObject('peek',
+            (_a, peek) => this._onActivityPeek(peek), this);
         dndSettings.connectObject('changed::show-banners',
             () => this._onBannersChanged(), this);
     }
@@ -256,6 +259,19 @@ export class SystemPeeks {
             apply: () => this._audioRouteView.update({iconName, title: name}),
             timeout: AUDIO_ROUTE_TIMEOUT_MS,
             key: 'audio-route',
+        });
+    }
+
+    // A peek another program asked for through the D-Bus API. It shows
+    // when the notch is closed, like the others.
+    _onActivityPeek({icon, title, body, timeout}) {
+        if (this._host.isOpen)
+            return;
+        this._host.showPeek({
+            view: this._activityView,
+            apply: () => this._activityView.update({icon, title, body}),
+            timeout,
+            key: 'activity-peek',
         });
     }
 

@@ -49,6 +49,15 @@ the pointer on it.
   down once a minute, and clicking it opens the Today tab.
 - **Downloads:** browser downloads show while they run, and a peek with the
   file name when they finish. Click it to open the Downloads folder.
+- **App progress:** apps that report progress to GNOME through the Unity
+  LauncherEntry API (browsers, file managers, torrent clients) show their
+  name, icon and a progress bar in the closed notch. It is on by default;
+  switch off **App progress** in Settings to stop it.
+- **Other programs:** scripts can show their own live activities and peeks
+  over the session bus, at `org.gnome.Shell.Extensions.BoringNotch` with
+  `Start`, `Update`, `End` and `Peek` (see `src/activityApi.js` for the
+  arguments and limits). Switch off **Other programs** in Settings to refuse
+  them.
 - **Volume and brightness:** changes appear inside the notch instead of the
   GNOME popup: as a bar beside the icon in the top row, or as a row grown
   under the clock, with the percentage beside the bar. Drag the bar to set

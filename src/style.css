@@ -53,6 +53,16 @@
   icon-size: 16px;
 }
 
+.bn-activity-bar {
+  width: 48px;
+  height: 4px;
+  -barlevel-height: 4px;
+  -barlevel-background-color: rgba(255, 255, 255, 0.2);
+  -barlevel-active-background-color: @accent;
+  -barlevel-overdrive-color: #ff9f0a;
+  -barlevel-overdrive-separator-width: 1px;
+}
+
 .bn-hud-bar {
   width: 56px;
   height: 6px;

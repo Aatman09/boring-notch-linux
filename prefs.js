@@ -314,6 +314,13 @@ function informationPage(settings) {
     settings.bind('show-next-event', lead, 'sensitive', Gio.SettingsBindFlags.GET);
     calendar.add(lead);
     page.add(calendar);
+
+    const activities = new Adw.PreferencesGroup({title: 'Live activities'});
+    activities.add(switchRow(settings, 'allow-external-activities', 'Other programs',
+        'Let scripts and apps show live activities and peeks through the D-Bus name org.gnome.Shell.Extensions.BoringNotch'));
+    activities.add(switchRow(settings, 'show-app-progress', 'App progress',
+        'Show progress that apps report to GNOME, such as browser downloads and file copies'));
+    page.add(activities);
     return page;
 }
 
