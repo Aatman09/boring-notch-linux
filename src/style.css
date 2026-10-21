@@ -61,6 +61,7 @@
   -barlevel-active-background-color: @accent;
   -barlevel-overdrive-color: #ff9f0a;
   -barlevel-overdrive-separator-width: 1px;
+  -slider-handle-radius: 0;
 }
 
 /* The row style: the notch grows a row under the clock, with the icon at
@@ -77,9 +78,11 @@
   -barlevel-active-background-color: @accent;
   -barlevel-overdrive-color: #ff9f0a;
   -barlevel-overdrive-separator-width: 1px;
+  -slider-handle-radius: 0;
 }
 
-.bn-row-hud-percentage {
+.bn-row-hud-value,
+.bn-row-hud-label {
   font-size: 12px;
   font-feature-settings: "tnum";
   color: #ebebf0;

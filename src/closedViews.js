@@ -1,8 +1,9 @@
 import Clutter from 'gi://Clutter';
+import Gio from 'gi://Gio';
 import GObject from 'gi://GObject';
 import St from 'gi://St';
 
-import * as BarLevel from 'resource:///org/gnome/shell/ui/barLevel.js';
+import * as Slider from 'resource:///org/gnome/shell/ui/slider.js';
 
 import {AlbumArt, MarqueeLabel, Visualizer} from './widgets.js';
 
@@ -87,29 +88,119 @@ class LiveMediaView extends ClosedView {
     }
 });
 
-/** InlineHUD: the volume or brightness icon, then the level bar. */
-export const InlineHudView = GObject.registerClass(
-class InlineHudView extends ClosedView {
-    _init() {
-        super._init('bn-hud');
-        this._icon = new St.Icon({style_class: 'bn-hud-icon'});
+// Which level the HUD bar can set, from the icon the OSD gave it. The
+// keyboard backlight, the microphone and anything else stay read-only.
+function hudKind(icon) {
+    const name = icon instanceof Gio.ThemedIcon ? icon.names[0] : null;
+    if (name?.startsWith('audio-volume'))
+        return 'volume';
+    if (name?.startsWith('display-brightness'))
+        return 'brightness';
+    return null;
+}
+
+/** HudView: the volume or brightness icon, a level bar and the percentage.
+ *  The inline style shares the top-bar row with the clock; the row style
+ *  grows the notch a row under it. The bar is a slider where the island
+ *  knows how to set the level, and read-only everywhere else. */
+const HudView = GObject.registerClass(
+class HudView extends ClosedView {
+    _init(settings, styleClass) {
+        super._init(styleClass);
+        this._settings = settings;
+        this._icon = new St.Icon({style_class: `${styleClass}-icon`});
         this.left.add_child(this._icon);
 
-        this._bar = new BarLevel.BarLevel({
-            style_class: 'bn-hud-bar',
-            y_align: Clutter.ActorAlign.CENTER,
-        });
+        // A Slider is a BarLevel: the same look, plus dragging. Its own
+        // theme class would add a handle; the HUD bar is just a bar.
+        this._bar = new Slider.Slider(0);
+        this._bar.remove_style_class_name('slider');
+        this._bar.add_style_class_name(`${styleClass}-bar`);
+        this._bar.y_align = Clutter.ActorAlign.CENTER;
+        this._bar.x_expand = false;
+        this._bar.can_focus = false;
+        this._bar.connect('drag-begin', () => (this._dragging = true));
+        this._bar.connect('drag-end', () => (this._dragging = false));
+        this._bar.connect('notify::value', () => this._onBarValue());
         this._value = new St.Label({
-            style_class: 'bn-hud-value',
+            style_class: `${styleClass}-value`,
             y_align: Clutter.ActorAlign.CENTER,
         });
         this._label = new St.Label({
-            style_class: 'bn-hud-label',
+            style_class: `${styleClass}-label`,
             y_align: Clutter.ActorAlign.CENTER,
         });
         this.right.add_child(this._bar);
         this.right.add_child(this._value);
         this.right.add_child(this._label);
+
+        // Set by the island: (kind, level, maxLevel) => level, or null when
+        // there is nothing here that can set it.
+        this.onAdjust = null;
+        this._kind = null;
+        this._level = 0;
+        this._maxLevel = 1;
+        this._dragging = false;
+        this._updating = false;
+    }
+
+    // Takes the arguments of OsdWindowManager._showOsdWindow; level runs
+    // from 0 to maxLevel, where 1 is 100%.
+    update(icon, label, level, maxLevel) {
+        this._icon.gicon = icon;
+        this._kind = hudKind(icon);
+        this._bar.reactive = this._kind !== null;
+        const hasLevel = typeof level === 'number';
+        this._bar.visible = hasLevel;
+        this._label.visible = !hasLevel;
+        this._value.visible = hasLevel &&
+            this._settings.get_boolean('hud-percentage');
+        if (hasLevel) {
+            const max = maxLevel > 0 ? maxLevel : 1;
+            this._maxLevel = max;
+            this._level = Math.max(0, Math.min(level, max));
+            // A drag is the authority while it goes on.
+            if (!this._dragging) {
+                this._updating = true;
+                this._bar.maximum_value = max;
+                this._bar.overdrive_start = 1;
+                this._bar.value = this._level;
+                this._updating = false;
+                this._value.text = `${Math.round(this._level * 100)}`;
+            }
+        } else {
+            this._label.text = label ?? '';
+        }
+    }
+
+    // Dragging the bar (or scrolling it) sets the level; the island does
+    // the setting and tells the view what it came to.
+    _onBarValue() {
+        if (this._updating)
+            return;
+        const level = this.onAdjust?.(this._kind, this._bar.value, this._maxLevel);
+        if (typeof level !== 'number')
+            return;
+        this._level = level;
+        this._value.text = `${Math.round(level * 100)}`;
+    }
+
+    // Whether a press is on the bar, so the island leaves it to the slider.
+    isBar(actor) {
+        return actor === this._bar;
+    }
+
+    // A bar the pointer is on or dragging must not vanish under the hand.
+    isInUse() {
+        return this._dragging || this._bar.hover;
+    }
+});
+
+/** Inline style: the bar beside the icon, in the top-bar row. */
+export const InlineHudView = GObject.registerClass(
+class InlineHudView extends HudView {
+    _init(settings) {
+        super._init(settings, 'bn-hud');
     }
 
     sideWidth() {
@@ -119,57 +210,18 @@ class InlineHudView extends ClosedView {
     get showsClock() {
         return false;
     }
-
-    // Takes the arguments of OsdWindowManager._showOsdWindow; level runs
-    // from 0 to maxLevel, where 1 is 100%.
-    update(icon, label, level, maxLevel) {
-        this._icon.gicon = icon;
-        const hasLevel = typeof level === 'number';
-        this._bar.visible = hasLevel;
-        this._value.visible = hasLevel;
-        this._label.visible = !hasLevel;
-        if (hasLevel) {
-            const max = maxLevel > 0 ? maxLevel : 1;
-            this._bar.maximum_value = max;
-            this._bar.overdrive_start = 1;
-            this._bar.value = Math.max(0, Math.min(level, max));
-            this._value.visible = this._settings.get_boolean('hud-percentage');
-            this._value.text = `${Math.round(level * 100)}`;
-        } else {
-            this._label.text = label ?? '';
-        }
-    }
 });
 
 /** Row style: the notch grows a row under the clock, icon one end, a long
  *  bar and the percentage at the other. */
 export const RowHudView = GObject.registerClass(
-class RowHudView extends ClosedView {
+class RowHudView extends HudView {
     _init(settings) {
-        super._init('bn-row-hud');
+        super._init(settings, 'bn-row-hud');
         // The row's content hugs the bottom, leaving the top-bar height
         // free for the clock.
         this.left.y_align = Clutter.ActorAlign.END;
         this.right.y_align = Clutter.ActorAlign.END;
-        this._icon = new St.Icon({style_class: 'bn-row-hud-icon'});
-        this.left.add_child(this._icon);
-
-        this._bar = new BarLevel.BarLevel({
-            style_class: 'bn-row-hud-bar',
-            y_align: Clutter.ActorAlign.CENTER,
-        });
-        this._percentage = new St.Label({
-            style_class: 'bn-row-hud-percentage',
-            y_align: Clutter.ActorAlign.CENTER,
-        });
-        this._label = new St.Label({
-            style_class: 'bn-row-hud-percentage',
-            y_align: Clutter.ActorAlign.CENTER,
-        });
-        this.right.add_child(this._bar);
-        this.right.add_child(this._percentage);
-        this.right.add_child(this._label);
-        this._settings = settings;
     }
 
     sideWidth() {
@@ -179,24 +231,6 @@ class RowHudView extends ClosedView {
     // One row of content, below the top bar the clock stays in.
     extraHeight() {
         return 28;
-    }
-
-    update(icon, label, level, maxLevel) {
-        this._icon.gicon = icon;
-        const hasLevel = typeof level === 'number';
-        this._bar.visible = hasLevel;
-        this._percentage.visible = hasLevel &&
-            this._settings.get_boolean('hud-percentage');
-        this._label.visible = !hasLevel;
-        if (hasLevel) {
-            const max = maxLevel > 0 ? maxLevel : 1;
-            this._bar.maximum_value = max;
-            this._bar.overdrive_start = 1;
-            this._bar.value = Math.max(0, Math.min(level, max));
-            this._percentage.text = `${Math.round(level * 100)}`;
-        } else {
-            this._label.text = label ?? '';
-        }
     }
 });
 

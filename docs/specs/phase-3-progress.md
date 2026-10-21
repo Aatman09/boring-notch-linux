@@ -13,9 +13,8 @@ Branch `phase-3-cleanup-and-look`. Nothing pushed.
 | player-null crash guard | done | `daac177` — kill-mid-download clean, guarded call shapes don't throw |
 | C3 scrolling titles | done | `1cc8f4d` MarqueeLabel, two passes, verified in open player + peek |
 | C4 accent colour | done | see below |
-| C5 row-style HUD peek | done | see below |
-| C5 row-style HUD peek | todo | |
-| C6 draggable HUD bar | todo | decide at the end |
+| C5 row-style HUD peek | done | `7122479`; see below |
+| C6 draggable HUD bar | done | see below |
 | Today tab multi-event test | todo | 100% and 125% |
 | 125% sweep, evidence, report | todo | |
 
@@ -59,3 +58,29 @@ Branch `phase-3-cleanup-and-look`. Nothing pushed.
   place.
 - Idle CPU identical between the styles (0.0–0.7 both); the growth rides
   the existing height spring.
+
+## C6 notes
+
+- Both styles now sit on one registered `HudView` base in
+  `src/closedViews.js`; the bar is a `Slider.Slider` (which is a `BarLevel`),
+  so it keeps the look and can be dragged or scrolled. The slider's own
+  `.slider` theme class is removed so the HUD bar has no handle.
+- `hudKind()` reads the OSD icon: `audio-volume*` is volume,
+  `display-brightness*` is screen brightness, everything else (keyboard
+  backlight, microphone) leaves the bar `reactive: false`.
+- `Island._adjustHud` writes the level and returns what it came to, so the
+  percentage follows the drag: the default sink with `push_volume()` and
+  the above-100 clamp from `_changeVolume`; `Main.brightnessManager
+  .globalScale.value` for brightness, `null` (read-only) without a
+  backlight. A drag produced **no** new peek in ten writes, so there is no
+  OSD loop.
+- The peek re-arms its timeout while `HudView.isInUse()` (dragging or the
+  pointer on the bar) instead of ending under the hand.
+- A press whose source is the bar returns `EVENT_PROPAGATE` from
+  `_onButtonPress`, so it never opens the notch or runs the peek action.
+- Checks at 100% and 125%: inline and row both drag (0.45 → 70 → 66 with
+  two scroll steps, label follows), amplified volume reaches 1.5 with the
+  setting on and clamps to 1.0 with it off, fast mute is cleared on a drag,
+  no JS errors, smoke passes. The headless box has no backlight, so the
+  brightness write itself was not exercised; the null path returns `null`
+  and leaves the bar inert.

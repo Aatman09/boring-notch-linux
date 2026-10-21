@@ -189,6 +189,8 @@ class Island extends St.Widget {
         this._liveMedia = new LiveMediaView(audio);
         this._hud = new InlineHudView(settings);
         this._hudRow = new RowHudView(settings);
+        for (const hud of [this._hud, this._hudRow])
+            hud.onAdjust = (kind, level, maxLevel) => this._adjustHud(kind, level, maxLevel);
         // The screen recording is the most urgent live activity: it hogs the
         // notch over the timer, the downloads and the music.
         this._recordLive = new IconTextView('bn-record-live', RECORD_LIVE_SIDE);
@@ -787,7 +789,15 @@ class Island extends St.Widget {
         peek.apply?.();
         this._sneak = peek.view;
         this._sneakAction = peek.action;
-        this._setTimeout('sneak', peek.timeout, () => this._endSneak());
+        const arm = () => this._setTimeout('sneak', peek.timeout, () => {
+            // A bar the pointer is on or dragging would vanish under the
+            // hand; give it another turn of the timeout instead.
+            if (peek.view.isInUse?.())
+                arm();
+            else
+                this._endSneak();
+        });
+        arm();
         this._syncMusicPeekScroll();
         this._relayout();
     }
@@ -1176,6 +1186,10 @@ class Island extends St.Widget {
             this._recording.stop();
             return Clutter.EVENT_STOP;
         }
+        // Pressing the HUD bar sets the level; it must not open the notch.
+        if ((this._sneak === this._hud || this._sneak === this._hudRow) &&
+            this._sneak.isBar(event.get_source()))
+            return Clutter.EVENT_PROPAGATE;
         if (this._sneakAction) {
             const action = this._sneakAction;
             this._endSneak();
@@ -1275,6 +1289,34 @@ class Island extends St.Widget {
         else if (level > 0)
             icon = 'audio-volume-low-symbolic';
         this.showHud(new Gio.ThemedIcon({name: icon}), null, level, top / normal);
+    }
+
+    // Sets a level dragged from the HUD bar and tells the view what it came
+    // to, or returns null where nothing here can set it.
+    _adjustHud(kind, level, maxLevel) {
+        if (kind === 'volume') {
+            const control = getMixerControl();
+            const sink = control.get_default_sink();
+            if (!sink)
+                return null;
+            const normal = control.get_vol_max_norm();
+            const top = this._soundSettings.get_boolean('allow-volume-above-100-percent')
+                ? control.get_vol_max_amplified() : normal;
+            const volume = Math.min(level * normal, top);
+            sink.volume = volume;
+            if (sink.is_muted && volume > 0)
+                sink.change_is_muted(false);
+            sink.push_volume();
+            return volume / normal;
+        }
+        if (kind === 'brightness') {
+            const scale = Main.brightnessManager?.globalScale;
+            if (!scale)
+                return null;
+            scale.value = level / maxLevel;
+            return level;
+        }
+        return null;
     }
 
     _fade(actor, visible, delay = 0) {
