@@ -10,7 +10,7 @@ import * as BarLevel from 'resource:///org/gnome/shell/ui/barLevel.js';
 import * as Calendar from 'resource:///org/gnome/shell/ui/calendar.js';
 import * as Slider from 'resource:///org/gnome/shell/ui/slider.js';
 
-import {AlbumArt, formatTime} from './widgets.js';
+import {AlbumArt, MarqueeLabel, formatTime} from './widgets.js';
 
 const formatSeconds = s => formatTime(s * GLib.USEC_PER_SEC);
 
@@ -198,8 +198,8 @@ class MediaPlayer extends St.BoxLayout {
         });
         this.add_child(column);
 
-        this._title = new St.Label({style_class: 'bn-title'});
-        this._artist = new St.Label({style_class: 'bn-artist'});
+        this._title = new MarqueeLabel('bn-title');
+        this._artist = new MarqueeLabel('bn-artist');
         column.add_child(this._title);
         column.add_child(this._artist);
 
@@ -235,9 +235,11 @@ class MediaPlayer extends St.BoxLayout {
         column.add_child(this._controls);
         this._settings = settings;
         this._buttons = {};
+        this._scrollOpen = false;
         this._playing = null;
         settings.connectObject(
             'changed::player-buttons', () => this._buildControls(),
+            'changed::scroll-titles', () => this._syncScrolling(),
             'changed::art-glow', () => {
                 this._playing = null;
                 this._syncPlaying(this._player?.playing ?? false);
@@ -269,8 +271,8 @@ class MediaPlayer extends St.BoxLayout {
         this._player = player;
         this._art.set_art(artUri);
         this._glow.style = artUri ? `background-image: url("${artUri}");` : null;
-        this._title.text = player.title;
-        this._artist.text = player.artists || player.identity;
+        this._title.set(player.title);
+        this._artist.set(player.artists || player.identity);
         this._slider.reactive = player.canSeek;
         this._syncButtons(player);
         this._syncPlaying(player.playing);
@@ -339,6 +341,19 @@ class MediaPlayer extends St.BoxLayout {
         const length = this._player?.length ?? 0;
         this._elapsed.text = formatTime(position);
         this._remaining.text = length > 0 ? `-${formatTime(length - position)}` : '';
+    }
+
+    // Long titles scroll while the notch is open on Home, and never while
+    // the notch is closed or the page is parked, however wide they are.
+    setScrolling(active) {
+        this._scrollOpen = active;
+        this._syncScrolling();
+    }
+
+    _syncScrolling() {
+        const on = this._scrollOpen && this._settings.get_boolean('scroll-titles');
+        for (const label of [this._title, this._artist])
+            label.setScrolling(on);
     }
 
     // The cover's colour tints the secondary text and the played part of
@@ -602,6 +617,8 @@ export const OpenView = GObject.registerClass({
             page.translation_y = pageId === id ? 0 : PARKED_Y;
         this._header.setActiveTab(id);
         this._layoutHeader();
+        // Titles only scroll while their page is in view.
+        this._player.setScrolling(id === 'home');
         if (id === 'today')
             this._today.reset();
     }
@@ -658,12 +675,14 @@ export const OpenView = GObject.registerClass({
             this._tick();
             return GLib.SOURCE_CONTINUE;
         });
+        this._player.setScrolling(this._tab === 'home');
     }
 
     stopTicking() {
         if (this._tickId)
             GLib.source_remove(this._tickId);
         this._tickId = 0;
+        this._player.setScrolling(false);
     }
 
     _tick() {

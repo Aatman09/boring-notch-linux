@@ -4,7 +4,7 @@ import St from 'gi://St';
 
 import * as BarLevel from 'resource:///org/gnome/shell/ui/barLevel.js';
 
-import {AlbumArt, Visualizer} from './widgets.js';
+import {AlbumArt, MarqueeLabel, Visualizer} from './widgets.js';
 
 // What the closed notch shows when it is wider than the bare notch: content
 // on the left and right of the middle, which stays empty like the hardware
@@ -295,8 +295,10 @@ class MusicPeekView extends ClosedView {
         super._init('bn-music-peek');
         this.left.x_expand = true;
         this._art = new AlbumArt('bn-art-small');
-        this._title = new St.Label({style_class: 'bn-icon-text-title', y_align: Clutter.ActorAlign.CENTER});
-        this._artist = new St.Label({style_class: 'bn-icon-text-body', y_align: Clutter.ActorAlign.CENTER});
+        // The caps keep the marquees narrower than their labels, so a long
+        // title has somewhere to slide.
+        this._title = new MarqueeLabel('bn-icon-text-title', 'bn-peek-title');
+        this._artist = new MarqueeLabel('bn-icon-text-body', 'bn-peek-artist');
         this.left.add_child(this._art);
         this.left.add_child(this._title);
         this.left.add_child(this._artist);
@@ -310,13 +312,18 @@ class MusicPeekView extends ClosedView {
         return false;
     }
 
+    // Long titles slide while the peek shows; the island turns this on
+    // and off with the peek.
+    setScrolling(active) {
+        for (const label of [this._title, this._artist])
+            label.setScrolling(active);
+    }
+
     // The player can be gone by the time its cover resolves: a browser
     // closing after a track change leaves nothing to name.
     update(player, artUri) {
         this._art.set_art(artUri);
-        if (!player)
-            return;
-        this._title.text = player.title;
-        this._artist.text = player.artists || player.identity;
+        this._title.set(player ? player.title : '');
+        this._artist.set(player ? (player.artists || player.identity) : '');
     }
 });

@@ -30,7 +30,8 @@ the pointer on it.
 - **Music:** album art and four bars in the closed notch while something
   plays. The bars follow the bass, mids and treble of what's playing, and both
   bars and player take their tint from the album cover. A blurred copy of the
-  cover glows behind the big cover while the track plays. The Home tab has the
+  cover glows behind the big cover while the track plays. Long titles and
+  artists slide through twice instead of being cut short. The Home tab has the
   full player with seek bar, shuffle, previous,
   play/pause, next and repeat. This works with any MPRIS player (Spotify,
   Firefox, Chromium, Rhythmbox, VLC and most others).

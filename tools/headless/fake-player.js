@@ -25,7 +25,12 @@ const xml = name => `<node>${{
         <property name="CanSeek" type="b" access="read"/></interface>`,
 }[name]}</node>`;
 
-const tracks = [['Blinding Lights', 'The Weeknd'], ['Midnight City', 'M83'], ['Starboy', 'The Weeknd, Daft Punk']];
+const tracks = ARGV[1]
+    ? ARGV[1].split('|').map(withArtist => {
+        const at = withArtist.indexOf('@');
+        return [withArtist.slice(0, at), withArtist.slice(at + 1) || 'Test Artist'];
+    })
+    : [['Blinding Lights', 'The Weeknd'], ['Midnight City', 'M83'], ['Starboy', 'The Weeknd, Daft Punk']];
 const LENGTH = 200e6;
 let i = 0, status = 'Playing', pos = 42e6, stamp = Date.now(), shuffle = false, loop = 'None';
 const position = () => Math.min(LENGTH, status === 'Playing' ? pos + (Date.now() - stamp) * 1000 : pos);

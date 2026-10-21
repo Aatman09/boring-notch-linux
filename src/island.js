@@ -254,6 +254,7 @@ class Island extends St.Widget {
             'changed::show-visualizer', () => this._syncVisualizer(),
             'changed::visualizer-follows-audio', () => this._syncVisualizer(),
             'changed::art-colors', () => this._syncArtColors(),
+            'changed::scroll-titles', () => this._syncMusicPeekScroll(),
             'changed::show-downloads', () => this._relayout(),
             'changed::show-privacy-indicators', () => this._syncPrivacyDots(),
             'changed::show-dnd', () => this._syncMoon(),
@@ -781,6 +782,7 @@ class Island extends St.Widget {
         this._sneak = peek.view;
         this._sneakAction = peek.action;
         this._setTimeout('sneak', peek.timeout, () => this._endSneak());
+        this._syncMusicPeekScroll();
         this._relayout();
     }
 
@@ -796,6 +798,7 @@ class Island extends St.Widget {
         }
         this._sneak = null;
         this._sneakAction = null;
+        this._syncMusicPeekScroll();
         // The timer view doubles as its own "done" peek; put it back.
         this._syncTimer();
         this._relayout();
@@ -806,7 +809,16 @@ class Island extends St.Widget {
         this._peeks = [];
         this._sneak = null;
         this._sneakAction = null;
+        this._syncMusicPeekScroll();
         this._syncTimer();
+    }
+
+    // Long titles slide in the music peek, which only shows while the
+    // notch is closed.
+    _syncMusicPeekScroll() {
+        this._musicPeek.setScrolling(
+            this._settings.get_boolean('scroll-titles') &&
+            this._sneak === this._musicPeek && this._state === State.CLOSED);
     }
 
     _syncTimer() {

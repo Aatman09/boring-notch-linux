@@ -99,6 +99,10 @@
       <default>true</default>
       <summary>Glow behind the album cover while the track plays</summary>
     </key>
+    <key name="scroll-titles" type="b">
+      <default>true</default>
+      <summary>Scroll song titles that are too long to fit, instead of cutting them short</summary>
+    </key>
     <key name="gestures" type="b">
       <default>true</default>
       <summary>Gestures on the notch: swipe down to open, up to close, sideways to change track</summary>
