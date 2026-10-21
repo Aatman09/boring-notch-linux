@@ -90,7 +90,7 @@ export class Shelf extends EventEmitter {
 
     _write(sync) {
         const dir = cacheDir();
-        GLib.mkdir_with_parents(dir, 0o755);
+        GLib.mkdir_with_parents(dir, 0o700);
         const file = Gio.File.new_for_path(GLib.build_filenamev([dir, FILE_NAME]));
         const contents = new TextEncoder().encode(JSON.stringify({paths: this._paths}));
         if (sync) {
@@ -168,7 +168,8 @@ export class Shelf extends EventEmitter {
     }
 
     destroy() {
-        // The downloads watcher drops this listener when it is destroyed.
+        // The downloads watcher is destroyed first and drops this listener
+        // then; disconnecting it again here would throw.
         this._settings.disconnectObject(this);
         this._cancelMonitors();
         // A change not yet written is written now, so closing the

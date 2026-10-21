@@ -5,7 +5,7 @@ import GObject from 'gi://GObject';
 import Pango from 'gi://Pango';
 import St from 'gi://St';
 
-import {shareTargets} from './share.js';
+import {ShareTargets} from './share.js';
 
 // The mimetype a file manager uses for copied files: one URI per line.
 const URI_LIST = 'text/uri-list';
@@ -77,6 +77,10 @@ class ShelfView extends St.BoxLayout {
         this._mode = 'files';
         // The file whose share targets are open, if any.
         this._sharePath = null;
+        // Cancels the file queries of the rows of the last build.
+        this._rowsCancellable = null;
+        this._shareTargets = new ShareTargets();
+        this._shareTargets.connectObject('changed', () => this._rebuild(), this);
 
         const bar = new St.BoxLayout({style_class: 'bn-shelf-bar'});
         this._modes = new St.BoxLayout({style_class: 'bn-shelf-modes'});
@@ -115,12 +119,19 @@ class ShelfView extends St.BoxLayout {
             'changed::shelf-share', () => this._rebuild(),
             'changed::clipboard-history', () => this._rebuild(),
             this);
+        this.connect('destroy', () => {
+            this._rowsCancellable?.cancel();
+            this._shareTargets.destroy();
+        });
         this._rebuild();
     }
 
-    // Called when the tab opens: files moved or deleted since then leave.
+    // Called when the tab opens: files moved or deleted since then leave,
+    // and the share targets are looked for again.
     reset() {
         this._shelf.prune();
+        if (this._settings.get_boolean('shelf-share'))
+            this._shareTargets.refresh();
     }
 
     _setMode(mode) {
@@ -137,6 +148,8 @@ class ShelfView extends St.BoxLayout {
     }
 
     _rebuild() {
+        this._rowsCancellable?.cancel();
+        this._rowsCancellable = new Gio.Cancellable();
         this._list.destroy_all_children();
         const history = this._settings.get_boolean('clipboard-history');
         if (!history)
@@ -155,12 +168,10 @@ class ShelfView extends St.BoxLayout {
             ? `${paths.length} on the shelf`
             : 'Copy files in the file manager, then press Paste';
         // Share buttons show only when there is something to share to.
-        this._canShare = this._settings.get_boolean('shelf-share') && shareTargets().length > 0;
-        for (const path of paths) {
-            const row = this._row(path);
-            if (row)
-                this._list.add_child(row);
-        }
+        this._canShare = this._settings.get_boolean('shelf-share') &&
+            this._shareTargets.targets.length > 0;
+        for (const path of paths)
+            this._list.add_child(this._row(path, this._rowsCancellable));
     }
 
     _rebuildClipboard() {
@@ -212,7 +223,7 @@ class ShelfView extends St.BoxLayout {
     // The targets found now, one button each. Sending closes them.
     _shareRow(path) {
         const row = new St.BoxLayout({style_class: 'bn-shelf-share'});
-        for (const target of shareTargets()) {
+        for (const target of this._shareTargets.targets) {
             row.add_child(chip(target.label, () => {
                 try {
                     target.send([path]);
@@ -225,22 +236,20 @@ class ShelfView extends St.BoxLayout {
         return row;
     }
 
-    // A row for a file that still exists; null for one that does not.
-    _row(path) {
+    // A row for a file. Its name and icon are filled in once the file has
+    // been asked about, off the main loop's hot path; a file that is gone
+    // hides its row.
+    _row(path, cancellable) {
         const file = Gio.File.new_for_path(path);
-        let info;
-        try {
-            info = file.query_info(QUERY, Gio.FileQueryInfoFlags.NONE, null);
-        } catch (e) {
-            return null;
-        }
-        const thumbnail = info.get_attribute_byte_string('thumbnail::path');
-        const icon = thumbnail ? Gio.FileIcon.new(Gio.File.new_for_path(thumbnail)) : info.get_icon();
-
+        const icon = new St.Icon({
+            icon_name: 'text-x-generic-symbolic',
+            style_class: 'bn-shelf-icon',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
         const row = new St.BoxLayout({style_class: 'bn-shelf-row', x_expand: true});
-        row.add_child(new St.Icon({gicon: icon, style_class: 'bn-shelf-icon', y_align: Clutter.ActorAlign.CENTER}));
+        row.add_child(icon);
         const name = new St.Label({
-            text: info.get_display_name(),
+            text: GLib.path_get_basename(path),
             style_class: 'bn-shelf-name',
             x_expand: true,
             y_align: Clutter.ActorAlign.CENTER,
@@ -257,6 +266,20 @@ class ShelfView extends St.BoxLayout {
         item.add_child(row);
         if (this._sharePath === path)
             item.add_child(this._shareRow(path));
+
+        file.query_info_async(QUERY, Gio.FileQueryInfoFlags.NONE, GLib.PRIORITY_DEFAULT, cancellable, (f, result) => {
+            let info;
+            try {
+                info = f.query_info_finish(result);
+            } catch (e) {
+                if (!e.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
+                    item.hide();
+                return;
+            }
+            const thumbnail = info.get_attribute_byte_string('thumbnail::path');
+            icon.gicon = thumbnail ? Gio.FileIcon.new(Gio.File.new_for_path(thumbnail)) : info.get_icon();
+            name.text = info.get_display_name();
+        });
         return item;
     }
 });
