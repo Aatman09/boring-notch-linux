@@ -232,5 +232,9 @@
       <default>true</default>
       <summary>Add finished downloads and new screenshots to the shelf</summary>
     </key>
+    <key name="shelf-share" type="b">
+      <default>true</default>
+      <summary>Show a Share button on shelf files, for the sharing targets found on this computer: GSConnect, Bluetooth, LocalSend and email</summary>
+    </key>
   </schema>
 </schemalist>

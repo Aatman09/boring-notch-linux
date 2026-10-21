@@ -55,6 +55,10 @@ the pointer on it.
   file manager, or removes it. The shelf keeps links to the files, never
   copies, in the cache folder; a file that has been moved or deleted leaves
   the list when the tab opens.
+- **Quick Share:** a Share button on each shelf file lists the ways this
+  computer can send it: a phone through GSConnect, Bluetooth, LocalSend and
+  email. Only the ones installed or running are listed, and the button is
+  hidden when there are none.
 - **Volume and brightness:** changes appear inside the notch instead of the
   GNOME popup: as a bar beside the icon in the top row, or as a row grown
   under the clock, with the percentage beside the bar. Drag the bar to set

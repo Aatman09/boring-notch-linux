@@ -5,7 +5,7 @@ time, each after the gate in `docs/specs/next-work-handoff.md`.
 
 ## Items
 
-1. **Shelf tab, step 1 (5.1, no drag and drop)**: in progress.
+1. **Shelf tab, step 1 (5.1, no drag and drop)**: done (commit 0d9c191).
    - Done: `src/shelf.js` (model, paths only, JSON in the cache folder, debounced
      save, prune on open, auto-add of downloads and screenshots), `src/shelfView.js`
      (tab page: Paste, Clear, rows with Open, Show in folder, Remove), header tab
@@ -15,7 +15,12 @@ time, each after the gate in `docs/specs/next-work-handoff.md`.
      and `config/user-dirs.dirs` (the watchers need them; without user-dirs GLib
      returned no Downloads folder in the headless shell), and keeps the folders
      named in `BN_KEEP` across a restart.
-2. **Quick Share from the shelf (5.4)**: not started.
+2. **Quick Share from the shelf (5.4)**: done in this commit. `src/share.js`
+   finds the targets (GSConnect when its bus name has an owner and it lists a
+   device; `bluetooth-sendto`; the LocalSend app in `Shell.AppSystem`;
+   `xdg-email`). Share opens the targets under the file, inline instead of a
+   popup menu, so the notch does not close under the pointer. GSConnect is
+   untested (not installed here).
 3. **Clipboard history (F18)**, off by default: not started.
 
 ## Notes

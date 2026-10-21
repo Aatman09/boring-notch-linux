@@ -43,7 +43,7 @@ export const OpenView = GObject.registerClass({
             home,
             today: this._today,
             timer: new TimerView({settings, timer, stopwatch, pomodoro}),
-            shelf: new ShelfView({shelf}),
+            shelf: new ShelfView({settings, shelf}),
         };
         Object.values(this._pages).forEach(page => this.add_child(page));
         this._tab = 'home';

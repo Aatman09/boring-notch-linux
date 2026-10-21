@@ -5,6 +5,8 @@ import GObject from 'gi://GObject';
 import Pango from 'gi://Pango';
 import St from 'gi://St';
 
+import {shareTargets} from './share.js';
+
 // The mimetype a file manager uses for copied files: one URI per line.
 const URI_LIST = 'text/uri-list';
 const QUERY = 'standard::display-name,standard::icon,thumbnail::path';
@@ -60,14 +62,17 @@ function filePaths(text) {
  */
 export const ShelfView = GObject.registerClass(
 class ShelfView extends St.BoxLayout {
-    _init({shelf}) {
+    _init({settings, shelf}) {
         super._init({
             orientation: Clutter.Orientation.VERTICAL,
             style_class: 'bn-shelf',
             x_expand: true,
             y_expand: true,
         });
+        this._settings = settings;
         this._shelf = shelf;
+        // The file whose share targets are open, if any.
+        this._sharePath = null;
 
         const bar = new St.BoxLayout({style_class: 'bn-shelf-bar'});
         this._count = new St.Label({style_class: 'bn-shelf-count', x_expand: true, y_align: Clutter.ActorAlign.CENTER});
@@ -90,6 +95,7 @@ class ShelfView extends St.BoxLayout {
         this.add_child(scroll);
 
         this._shelf.connectObject('changed', () => this._rebuild(), this);
+        settings.connectObject('changed::shelf-share', () => this._rebuild(), this);
         this._rebuild();
     }
 
@@ -126,11 +132,35 @@ class ShelfView extends St.BoxLayout {
         this._count.text = paths.length > 0
             ? `${paths.length} on the shelf`
             : 'Copy files in the file manager, then press Paste';
+        // Share buttons show only when there is something to share to.
+        this._canShare = this._settings.get_boolean('shelf-share') && shareTargets().length > 0;
         for (const path of paths) {
             const row = this._row(path);
             if (row)
                 this._list.add_child(row);
         }
+    }
+
+    // Opens the share targets under a file, or closes them when they are open.
+    _toggleShare(path) {
+        this._sharePath = this._sharePath === path ? null : path;
+        this._rebuild();
+    }
+
+    // The targets found now, one button each. Sending closes them.
+    _shareRow(path) {
+        const row = new St.BoxLayout({style_class: 'bn-shelf-share'});
+        for (const target of shareTargets()) {
+            row.add_child(chip(target.label, () => {
+                try {
+                    target.send([path]);
+                } catch (e) {
+                    console.warn(`Boring Notch: cannot share with ${target.label}: ${e.message}`);
+                }
+                this._toggleShare(path);
+            }));
+        }
+        return row;
     }
 
     // A row for a file that still exists; null for one that does not.
@@ -157,7 +187,14 @@ class ShelfView extends St.BoxLayout {
         row.add_child(name);
         row.add_child(chip('Open', () => openFile(file)));
         row.add_child(chip('Show in folder', () => showInFolder(file)));
+        if (this._canShare)
+            row.add_child(chip('Share', () => this._toggleShare(path)));
         row.add_child(chip('Remove', () => this._shelf.remove(path)));
-        return row;
+
+        const item = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true});
+        item.add_child(row);
+        if (this._sharePath === path)
+            item.add_child(this._shareRow(path));
+        return item;
     }
 });

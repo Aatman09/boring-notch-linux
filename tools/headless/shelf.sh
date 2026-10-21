@@ -50,7 +50,7 @@ check "a new screenshot is added" $([ "$(paths | cut -d'|' -f1)" = "$T/home/Pict
 
 # 4. Remove: the Remove button of the first row takes that file off the shelf.
 before=$(val "$shelf_js String(v._shelf.paths.length)")
-val "$shelf_js const row = v._list.get_children()[0]; row.get_children().at(-1).emit('clicked', null); 'x'" >/dev/null
+val "$shelf_js const row = v._list.get_children()[0].get_children()[0]; row.get_children().at(-1).emit('clicked', null); 'x'" >/dev/null
 after=$(val "$shelf_js String(v._shelf.paths.length)")
 check "Remove takes one file off" $([ "$before" -gt 0 ] && [ "$after" = $((before - 1)) ] && echo 1 || echo 0) "before=$before after=$after"
 
@@ -59,6 +59,20 @@ rm -f "$T/files/report.pdf"
 val "global.bn.close(); 'x'" >/dev/null; wait_a_bit 0.5
 val "global.bn.open('shelf'); 'x'" >/dev/null; wait_a_bit 1
 check "a deleted file is dropped when the tab opens" $([ "$(paths | grep -c report.pdf)" = 0 ] && echo 1 || echo 0) "paths=$(paths)"
+
+# 5b. Share: a Share button with the targets found here, which goes when
+#     shelf-share is off. Nothing is sent here: the test does not open mail or
+#     Bluetooth.
+settings="Main.extensionManager.lookup('$UUID').stateObj._settings"
+val "$shelf_js v._shelf.add('$T/files/notes.txt'); 'x'" >/dev/null; wait_a_bit 0.5
+targets=$(val "$shelf_js v._toggleShare('$T/files/notes.txt'); const c = v._list.get_children()[0].get_children()[1]; c ? c.get_children().map(b => b.label).join(',') : 'none'")
+val "$shelf_js v._toggleShare('$T/files/notes.txt'); 'x'" >/dev/null
+check "Share lists the targets found on this computer" $([ -n "$targets" ] && [ "$targets" != none ] && echo 1 || echo 0) "targets=$targets"
+has_share=$(val "$shelf_js String(v._list.get_children()[0].get_children()[0].get_children().some(b => b.label === 'Share'))")
+val "$settings.set_boolean('shelf-share', false); 'x'" >/dev/null; wait_a_bit 0.5
+hidden=$(val "$shelf_js String(!v._list.get_children()[0].get_children()[0].get_children().some(b => b.label === 'Share'))")
+val "$settings.set_boolean('shelf-share', true); 'x'" >/dev/null; wait_a_bit 0.5
+check "the Share button is there, and goes when shelf-share is off" $([ "$has_share" = true ] && [ "$hidden" = true ] && echo 1 || echo 0) "shown=$has_share hidden_when_off=$hidden"
 
 # 6. The shelf survives a restart: the cache and the test files are kept.
 val "global.bn.open('shelf'); $shelf_js v._paste(); 'x'" >/dev/null; wait_a_bit 1

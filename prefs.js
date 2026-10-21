@@ -244,6 +244,14 @@ function shelfPage(settings) {
     shelf.add(switchRow(settings, 'shelf-auto-add', 'Add downloads and screenshots',
         'Add each finished download and each new screenshot to the shelf'));
     page.add(shelf);
+
+    const share = new Adw.PreferencesGroup({
+        title: 'Share',
+        description: 'Share targets are found when you press Share: only the ones installed or running here are offered.',
+    });
+    share.add(switchRow(settings, 'shelf-share', 'Share button',
+        'Show Share on each file, with Phone (GSConnect), Bluetooth, LocalSend and Email when they are available'));
+    page.add(share);
     return page;
 }
 

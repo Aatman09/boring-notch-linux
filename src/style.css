@@ -679,6 +679,11 @@
   icon-size: 32px;
 }
 
+.bn-shelf-share {
+  spacing: 6px;
+  padding: 2px 6px 6px 48px;
+}
+
 .bn-shelf-name {
   font-size: 13px;
   font-weight: 500;
