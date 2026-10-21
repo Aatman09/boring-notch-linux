@@ -83,7 +83,7 @@ const VOLUME_STEP = 0.05;
 
 export const Island = GObject.registerClass(
 class Island extends St.Widget {
-    _init({settings, zoom, media, battery, timer, downloads, audio, privacy, bluetooth, keyboard, recording, audioRoute, artCache, artColor, openPreferences}) {
+    _init({settings, zoom, media, battery, timer, stopwatch, pomodoro, downloads, audio, privacy, bluetooth, keyboard, recording, audioRoute, artCache, artColor, openPreferences}) {
         super._init({
             name: 'boring-notch',
             reactive: true,
@@ -96,6 +96,8 @@ class Island extends St.Widget {
         this._media = media;
         this._battery = battery;
         this._timer = timer;
+        this._stopwatch = stopwatch;
+        this._pomodoro = pomodoro;
         this._downloads = downloads;
         this._privacy = privacy;
         this._bluetooth = bluetooth;
@@ -228,6 +230,8 @@ class Island extends St.Widget {
             settings,
             battery,
             timer,
+            stopwatch,
+            pomodoro,
             dndSettings: this._dndSettings,
             openPreferences: () => {
                 this.close();
@@ -263,6 +267,7 @@ class Island extends St.Widget {
             'changed::show-privacy-indicators', () => this._syncPrivacyDots(),
             'changed::show-dnd', () => this._syncMoon(),
             'changed::show-recording', () => this._onShowRecordingChanged(),
+            'changed::timer-modes', () => this._onTimerModesChanged(),
             this);
         zoom.connectObject('changed', () => this._relayout(true), this);
         this._clockLabel.connect('notify::text', () => this._relayout());
@@ -294,7 +299,12 @@ class Island extends St.Widget {
             (_r, route) => this._onAudioRouteChanged(route), this);
         timer.connectObject(
             'changed', () => this._syncTimer(),
-            'finished', () => this._onTimerFinished(),
+            'finished', () => this._onTimerFinished('Done'),
+            this);
+        stopwatch.connectObject('changed', () => this._syncTimer(), this);
+        pomodoro.connectObject(
+            'changed', () => this._syncTimer(),
+            'finished', (_p, phase) => this._onTimerFinished(phase === 'work' ? 'Break time' : 'Back to work'),
             this);
         downloads.connectObject(
             'changed', () => this._syncDownloads(),
@@ -724,13 +734,13 @@ class Island extends St.Widget {
         }
     }
 
-    _onTimerFinished() {
+    _onTimerFinished(title) {
         global.display.get_sound_player().play_from_theme('complete', 'Timer done', null);
         if (this._state === State.OPEN)
             return;
         this._showPeek({
             view: this._timerLive,
-            apply: () => this._timerLive.update({iconName: 'alarm-symbolic', title: 'Done'}),
+            apply: () => this._timerLive.update({iconName: 'alarm-symbolic', title}),
             timeout: TIMER_DONE_TIMEOUT_MS,
             action: () => this.open('timer'),
             priority: Priority.NOTIFICATION,
@@ -837,14 +847,30 @@ class Island extends St.Widget {
             this._sneak === this._musicPeek && this._state === State.CLOSED);
     }
 
+    // The countdown, stopwatch or Pomodoro that is running or paused. Starting
+    // one stops the others, so there is at most one.
+    _activeTimer() {
+        return [this._timer, this._stopwatch, this._pomodoro].find(t => t.active) ?? null;
+    }
+
     _syncTimer() {
         if (this._sneak === this._timerLive)
             return;
+        const timer = this._activeTimer();
         this._timerLive.update({
-            iconName: 'alarm-symbolic',
-            title: formatSeconds(this._timer.remaining),
+            iconName: timer === this._stopwatch ? 'preferences-system-time-symbolic' : 'alarm-symbolic',
+            title: formatSeconds(timer?.seconds ?? 0),
         });
         this._relayout();
+    }
+
+    // With the modes switched off, a stopwatch or Pomodoro left running
+    // would tick unseen, so it is stopped.
+    _onTimerModesChanged() {
+        if (this._settings.get_boolean('timer-modes'))
+            return;
+        this._stopwatch.reset();
+        this._pomodoro.reset();
     }
 
     _syncDownloads() {
@@ -968,7 +994,7 @@ class Island extends St.Widget {
             return this._sneak;
         if (this._recording.recording && this._settings.get_boolean('show-recording'))
             return this._recordLive;
-        if (this._timer.active)
+        if (this._activeTimer())
             return this._timerLive;
         if (this._downloads.count > 0 && this._settings.get_boolean('show-downloads'))
             return this._downloadLive;

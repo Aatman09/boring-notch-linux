@@ -556,6 +556,12 @@
   spacing: 6px;
 }
 
+.bn-timer-phase {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(235, 235, 240, 0.6);
+}
+
 .bn-chip {
   padding: 3px 10px;
   border-radius: 99px;

@@ -18,7 +18,7 @@ import {MediaManager} from './src/media.js';
 import {PrivacyMonitor} from './src/privacy.js';
 import {RecordingMonitor} from './src/recording.js';
 import {ScaledStylesheet} from './src/style.js';
-import {Timer} from './src/timer.js';
+import {Pomodoro, Stopwatch, Timer} from './src/timer.js';
 import {Zoom} from './src/zoom.js';
 
 /**
@@ -84,6 +84,8 @@ export default class BoringNotchExtension extends Extension {
         this._media = new MediaManager();
         this._battery = new BatteryMonitor();
         this._timer = new Timer();
+        this._stopwatch = new Stopwatch();
+        this._pomodoro = new Pomodoro(this._settings);
         this._downloads = new DownloadWatcher();
         this._artCache = new ArtCache();
         this._artColor = new ArtColorLoader();
@@ -100,6 +102,8 @@ export default class BoringNotchExtension extends Extension {
             media: this._media,
             battery: this._battery,
             timer: this._timer,
+            stopwatch: this._stopwatch,
+            pomodoro: this._pomodoro,
             downloads: this._downloads,
             audio: this._audio,
             privacy: this._privacy,
@@ -224,6 +228,10 @@ export default class BoringNotchExtension extends Extension {
         this._downloads = null;
         this._timer.destroy();
         this._timer = null;
+        this._stopwatch.destroy();
+        this._stopwatch = null;
+        this._pomodoro.destroy();
+        this._pomodoro = null;
         this._battery.destroy();
         this._battery = null;
         this._media.destroy();

@@ -111,6 +111,19 @@ function generalPage(settings) {
         'Open on the tab used last time instead of Home'));
     page.add(notch);
 
+    const timer = new Adw.PreferencesGroup({title: 'Timer'});
+    timer.add(switchRow(settings, 'timer-modes', 'Stopwatch and Pomodoro',
+        'Modes beside the countdown on the Timer tab. Only one runs at a time, and it shows in the closed notch.'));
+    const work = spinRow(settings, 'pomodoro-work-minutes', 'Pomodoro work',
+        'Minutes of work in each Pomodoro. Work and break follow each other.', [1, 120, 1]);
+    const rest = spinRow(settings, 'pomodoro-break-minutes', 'Pomodoro break',
+        'Minutes of break in each Pomodoro', [1, 60, 1]);
+    for (const row of [work, rest])
+        settings.bind('timer-modes', row, 'sensitive', Gio.SettingsBindFlags.GET);
+    timer.add(work);
+    timer.add(rest);
+    page.add(timer);
+
     const colour = new Adw.PreferencesGroup({title: 'Colour'});
     const [accent, syncAccent] = choiceRow('Accent',
         'Tints the tab chips, the switches and the bars in the notch',

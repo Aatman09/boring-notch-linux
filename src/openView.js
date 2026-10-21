@@ -30,6 +30,11 @@ const PLAYER_BUTTONS = {
     'repeat': {icon: 'media-playlist-repeat-symbolic', style: 'bn-toggle', press: p => p.cycleLoop()},
 };
 const TIMER_PRESETS = [1, 5, 10, 15, 25];
+const TIMER_MODES = [
+    {id: 'timer', label: 'Timer'},
+    {id: 'stopwatch', label: 'Stopwatch'},
+    {id: 'pomodoro', label: 'Pomodoro'},
+];
 
 export const TABS = [
     {id: 'home', label: 'Home', icon: 'user-home-symbolic'},
@@ -511,10 +516,11 @@ class TodayView extends St.BoxLayout {
     }
 });
 
-/** The Timer tab: presets, then start, pause and reset. */
+/** The Timer tab: a countdown with presets, a stopwatch or a Pomodoro, then
+ *  start, pause and reset. Starting one mode stops the others. */
 const TimerView = GObject.registerClass(
 class TimerView extends St.BoxLayout {
-    _init(timer) {
+    _init({settings, timer, stopwatch, pomodoro}) {
         super._init({
             orientation: Clutter.Orientation.VERTICAL,
             style_class: 'bn-timer',
@@ -523,57 +529,125 @@ class TimerView extends St.BoxLayout {
             x_align: Clutter.ActorAlign.CENTER,
             y_align: Clutter.ActorAlign.CENTER,
         });
-        this._timer = timer;
+        this._settings = settings;
+        this._models = {timer, stopwatch, pomodoro};
+        this._selected = 'timer';
         this._minutes = 5;
 
         this._time = new St.Label({style_class: 'bn-timer-time', x_align: Clutter.ActorAlign.CENTER});
         this.add_child(this._time);
+
+        const modes = new St.BoxLayout({style_class: 'bn-timer-presets', x_align: Clutter.ActorAlign.CENTER});
+        this._modeChips = TIMER_MODES.map(({id, label}) => {
+            const button = new St.Button({style_class: 'bn-chip', label, can_focus: true});
+            button.connect('clicked', () => {
+                this._selected = id;
+                this._sync();
+            });
+            button._mode = id;
+            modes.add_child(button);
+            return button;
+        });
+        this._modeRow = modes;
+        this.add_child(modes);
 
         const presets = new St.BoxLayout({style_class: 'bn-timer-presets', x_align: Clutter.ActorAlign.CENTER});
         this._presets = TIMER_PRESETS.map(minutes => {
             const button = new St.Button({style_class: 'bn-chip', label: `${minutes} min`, can_focus: true});
             button.connect('clicked', () => {
                 this._minutes = minutes;
-                this._timer.start(minutes * 60);
+                this._start();
             });
             button._minutes = minutes;
             presets.add_child(button);
             return button;
         });
+        this._presetRow = presets;
         this.add_child(presets);
+
+        this._phase = new St.Label({style_class: 'bn-timer-phase', x_align: Clutter.ActorAlign.CENTER});
+        this.add_child(this._phase);
 
         const controls = new St.BoxLayout({style_class: 'bn-controls', x_align: Clutter.ActorAlign.CENTER});
         this._playPause = iconButton('media-playback-start-symbolic', 'bn-play', () => {
-            if (this._timer.running)
-                this._timer.pause();
-            else if (this._timer.active)
-                this._timer.resume();
+            const model = this._model;
+            if (model.running)
+                model.pause();
+            else if (model.active)
+                model.resume();
             else
-                this._timer.start(this._minutes * 60);
+                this._start();
         });
-        this._reset = iconButton('view-refresh-symbolic', '', () => this._timer.reset());
+        this._reset = iconButton('view-refresh-symbolic', '', () => this._model.reset());
         controls.add_child(this._playPause);
         controls.add_child(this._reset);
         this.add_child(controls);
 
-        timer.connectObject('changed', () => this._sync(), this);
+        for (const model of Object.values(this._models))
+            model.connectObject('changed', () => this._sync(), this);
+        settings.connectObject('changed', () => this._sync(), this);
         this._sync();
     }
 
+    // Only the countdown while the modes are switched off in the settings.
+    get _mode() {
+        return this._settings.get_boolean('timer-modes') ? this._selected : 'timer';
+    }
+
+    get _model() {
+        return this._models[this._mode];
+    }
+
+    // Stops the other timers, then starts this one from its beginning.
+    _start() {
+        for (const [mode, model] of Object.entries(this._models)) {
+            if (mode !== this._mode)
+                model.reset();
+        }
+        if (this._mode === 'timer')
+            this._models.timer.start(this._minutes * 60);
+        else
+            this._model.start();
+    }
+
+    // What the time reads when nothing runs: the chosen countdown, the
+    // Pomodoro's work length, or zero for the stopwatch.
+    _idleSeconds() {
+        if (this._mode === 'timer')
+            return this._minutes * 60;
+        if (this._mode === 'pomodoro')
+            return this._settings.get_int('pomodoro-work-minutes') * 60;
+        return 0;
+    }
+
     _sync() {
-        const timer = this._timer;
-        this._time.text = formatSeconds(timer.active ? timer.remaining : this._minutes * 60);
-        this._playPause.child.icon_name = timer.running
+        const mode = this._mode;
+        const model = this._model;
+        this._time.text = formatSeconds(model.active ? model.seconds : this._idleSeconds());
+        this._playPause.child.icon_name = model.running
             ? 'media-playback-pause-symbolic'
             : 'media-playback-start-symbolic';
-        this._reset.reactive = timer.active;
-        const selected = timer.active ? Math.round(timer.duration / 60) : this._minutes;
+        this._reset.reactive = model.active;
+
+        this._modeRow.visible = this._settings.get_boolean('timer-modes');
+        for (const button of this._modeChips) {
+            if (button._mode === mode)
+                button.add_style_pseudo_class('checked');
+            else
+                button.remove_style_pseudo_class('checked');
+        }
+
+        this._presetRow.visible = mode === 'timer';
+        const selected = model.active ? Math.round(this._models.timer.duration / 60) : this._minutes;
         for (const button of this._presets) {
             if (button._minutes === selected)
                 button.add_style_pseudo_class('checked');
             else
                 button.remove_style_pseudo_class('checked');
         }
+        this._phase.visible = mode === 'pomodoro';
+        if (mode === 'pomodoro')
+            this._phase.text = model.phase === 'break' ? 'Break' : 'Work';
     }
 });
 
@@ -589,7 +663,7 @@ const PARKED_Y = -10000;
 export const OpenView = GObject.registerClass({
     Signals: {'tab-selected': {param_types: [GObject.TYPE_STRING]}},
 }, class OpenView extends St.Widget {
-    _init({settings, battery, timer, dndSettings, openPreferences}) {
+    _init({settings, battery, timer, stopwatch, pomodoro, dndSettings, openPreferences}) {
         super._init({style_class: 'bn-open', opacity: 0});
 
         this._header = new Header(battery, dndSettings, openPreferences);
@@ -602,7 +676,7 @@ export const OpenView = GObject.registerClass({
         home.add_child(this._player);
         home.add_child(this._idle);
         this._today = new TodayView();
-        this._pages = {home, today: this._today, timer: new TimerView(timer)};
+        this._pages = {home, today: this._today, timer: new TimerView({settings, timer, stopwatch, pomodoro})};
         Object.values(this._pages).forEach(page => this.add_child(page));
 
         this._sizes = null;

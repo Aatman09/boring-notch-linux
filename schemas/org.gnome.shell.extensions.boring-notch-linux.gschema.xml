@@ -161,6 +161,20 @@
       <default>"inline"</default>
       <summary>How a level change shows in the closed notch: the bar beside the icon, or a row under the clock</summary>
     </key>
+    <key name="timer-modes" type="b">
+      <default>true</default>
+      <summary>Show the stopwatch and Pomodoro modes on the Timer tab, beside the countdown</summary>
+    </key>
+    <key name="pomodoro-work-minutes" type="i">
+      <range min="1" max="120"/>
+      <default>25</default>
+      <summary>Length of a Pomodoro work phase, in minutes</summary>
+    </key>
+    <key name="pomodoro-break-minutes" type="i">
+      <range min="1" max="60"/>
+      <default>5</default>
+      <summary>Length of a Pomodoro break, in minutes</summary>
+    </key>
     <key name="hud-percentage" type="b">
       <default>true</default>
       <summary>Show the number next to the level bar</summary>
