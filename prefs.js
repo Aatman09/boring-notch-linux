@@ -1,8 +1,15 @@
 import Adw from 'gi://Adw';
+import Gdk from 'gi://Gdk';
 import Gio from 'gi://Gio';
 import Gtk from 'gi://Gtk';
 
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
+
+const ACCENT_MODES = [
+    ['off', 'Default colours'],
+    ['system', 'System accent'],
+    ['custom', 'Custom'],
+];
 
 const CLOCK_MODES = [
     ['notch', 'In the notch'],
@@ -98,6 +105,36 @@ function generalPage(settings) {
     notch.add(switchRow(settings, 'remember-last-tab', 'Remember the last tab',
         'Open on the tab used last time instead of Home'));
     page.add(notch);
+
+    const colour = new Adw.PreferencesGroup({title: 'Colour'});
+    const [accent, syncAccent] = choiceRow('Accent',
+        'Tints the tab chips, the switches and the bars in the notch',
+        ACCENT_MODES, () => settings.get_string('accent-mode'),
+        v => settings.set_string('accent-mode', v));
+    colour.add(accent);
+    // The custom colour is picked with GTK's colour dialog and stored as
+    // #rrggbb, the form the stylesheet reads.
+    const custom = new Gtk.ColorDialogButton({dialog: new Gtk.ColorDialog()});
+    custom.valign = Gtk.Align.CENTER;
+    const syncCustom = () => {
+        const rgba = new Gdk.RGBA();
+        if (rgba.parse(settings.get_string('custom-accent')))
+            custom.rgba = rgba;
+        custom.visible = settings.get_string('accent-mode') === 'custom';
+    };
+    custom.connect('notify::rgba', () => {
+        settings.set_string('custom-accent', `#${['red', 'green', 'blue']
+            .map(bh => Math.round(custom.rgba[bh] * 255).toString(16).padStart(2, '0'))
+            .join('')}`);
+    });
+    settings.connect('changed::accent-mode', () => {
+        syncAccent();
+        syncCustom();
+    });
+    settings.connect('changed::custom-accent', syncCustom);
+    syncCustom();
+    colour.add(custom);
+    page.add(colour);
 
     const gestures = new Adw.PreferencesGroup({title: 'Gestures'});
     gestures.add(switchRow(settings, 'gestures', 'Touchpad and mouse gestures',

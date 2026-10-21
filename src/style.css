@@ -58,7 +58,7 @@
   height: 6px;
   -barlevel-height: 6px;
   -barlevel-background-color: rgba(255, 255, 255, 0.2);
-  -barlevel-active-background-color: #ffffff;
+  -barlevel-active-background-color: @accent;
   -barlevel-overdrive-color: #ff9f0a;
   -barlevel-overdrive-separator-width: 1px;
 }
@@ -249,7 +249,7 @@
 }
 
 .bn-toggle:checked {
-  color: #ffffff;
+  color: @accent;
 }
 
 .bn-play StIcon {
@@ -303,7 +303,7 @@
   height: 12px;
   -barlevel-height: 5px;
   -barlevel-background-color: rgba(255, 255, 255, 0.2);
-  -barlevel-active-background-color: #ffffff;
+  -barlevel-active-background-color: @accent;
   -slider-handle-radius: 0;
 }
 
@@ -544,8 +544,8 @@
 }
 
 .bn-chip:checked {
-  background-color: #ff9f0a;
-  color: #000000;
+  background-color: @accent-chip;
+  color: @accent-chip-text;
 }
 
 /* Volume and brightness in the open notch's header */

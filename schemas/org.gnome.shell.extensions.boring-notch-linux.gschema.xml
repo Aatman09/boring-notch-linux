@@ -58,6 +58,15 @@
       <default>1.25</default>
       <summary>Size of the text in the notch, as a multiple of the normal size</summary>
     </key>
+    <key name="accent-mode" type="s">
+      <choices>
+        <choice value="off"/>
+        <choice value="system"/>
+        <choice value="custom"/>
+      </choices>
+      <default>"off"</default>
+      <summary>Where the accent colour for chips, toggles and bars comes from: the old colours, the system accent or a custom one</summary>
+    </key>
     <key name="clock-mode" type="s">
       <choices>
         <choice value="notch"/>
@@ -102,6 +111,10 @@
     <key name="scroll-titles" type="b">
       <default>true</default>
       <summary>Scroll song titles that are too long to fit, instead of cutting them short</summary>
+    </key>
+    <key name="custom-accent" type="s">
+      <default>"#3584e4"</default>
+      <summary>The accent colour used when accent-mode is custom, as #rrggbb</summary>
     </key>
     <key name="gestures" type="b">
       <default>true</default>

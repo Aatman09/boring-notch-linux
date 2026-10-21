@@ -80,7 +80,7 @@ export default class BoringNotchExtension extends Extension {
     enable() {
         this._settings = this.getSettings();
         this._zoom = new Zoom(this._settings);
-        this._stylesheet = new ScaledStylesheet(this.dir.resolve_relative_path('src/style.css'), this._zoom);
+        this._stylesheet = new ScaledStylesheet(this.dir.resolve_relative_path('src/style.css'), this._zoom, this._settings);
         this._media = new MediaManager();
         this._battery = new BatteryMonitor();
         this._timer = new Timer();

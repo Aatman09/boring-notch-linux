@@ -60,7 +60,8 @@ the pointer on it.
 - **Sound output:** a peek saying Headphones, Speakers or whatever the active
   output now is, when it changes.
 - **Settings:** size, hover to open, hover delay, notch width, clock
-  placement, and each live activity can be turned off.
+  placement, accent colour (the system accent or a custom one) for the tab
+  chips, switches and bars, and each live activity can be turned off.
 
 ## Cost
 
