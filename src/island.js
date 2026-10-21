@@ -10,7 +10,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {getMixerControl} from 'resource:///org/gnome/shell/ui/status/volume.js';
 
-import {BatterySneakView, IconTextView, InlineHudView, LiveMediaView, MusicPeekView, RowHudView, ScreenshotPeekView} from './closedViews.js';
+import {BatterySneakView, IconTextView, InlineHudView, LiveMediaView, MusicPeekView, NotificationPeekView, RowHudView, ScreenshotPeekView} from './closedViews.js';
 import {NotchShape} from './notchShape.js';
 import {OpenView} from './openView.js';
 import {Spring, SpringAnimator} from './spring.js';
@@ -199,7 +199,7 @@ class Island extends St.Widget {
         this._batterySneak = new BatterySneakView();
         this._timerLive = new IconTextView('bn-timer-live', 52);
         this._downloadLive = new IconTextView('bn-download-live', 52);
-        this._messageSneak = new IconTextView('bn-message-sneak', 150, {peek: true});
+        this._messageSneak = new NotificationPeekView();
         this._privacyPeek = new IconTextView('bn-privacy-peek', 145, {peek: true});
         this._screenshotPeek = new ScreenshotPeekView();
         this._bluetoothPeek = new IconTextView('bn-bluetooth-peek', 130, {peek: true});
@@ -495,6 +495,18 @@ class Island extends St.Widget {
             iconName: 'preferences-system-notifications-symbolic',
             title: notification.title ?? '',
             body: (notification.body ?? '').replace(/\s+/g, ' '),
+            actions: this._settings.get_boolean('notification-buttons')
+                ? notification.actions.slice(0, 2).map(action => ({
+                    label: action.label,
+                    // The button runs the notification's own action and ends
+                    // the peek. Only the peek that is showing can end.
+                    activate: () => {
+                        action.activate();
+                        if (this._sneak === this._messageSneak)
+                            this._endSneak();
+                    },
+                }))
+                : [],
         };
         this._showPeek({
             view: this._messageSneak,
@@ -1215,6 +1227,9 @@ class Island extends St.Widget {
         // Pressing the HUD bar sets the level; it must not open the notch.
         if ((this._sneak === this._hud || this._sneak === this._hudRow) &&
             this._sneak.isBar(event.get_source()))
+            return Clutter.EVENT_PROPAGATE;
+        // A notification's button takes its own click, not the peek's action.
+        if (this._sneak === this._messageSneak && this._messageSneak.pointerOnButton)
             return Clutter.EVENT_PROPAGATE;
         if (this._sneakAction) {
             const action = this._sneakAction;

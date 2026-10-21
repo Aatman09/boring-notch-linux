@@ -241,6 +241,10 @@ function peeksPage(settings) {
     });
     group.add(switchRow(settings, 'notifications-in-notch', 'Notifications',
         'Show new notifications in the notch instead of as banners'));
+    const buttons = switchRow(settings, 'notification-buttons', 'Notification buttons',
+        'Show up to two of a notification\'s own buttons, such as Reply, on its peek');
+    settings.bind('notifications-in-notch', buttons, 'sensitive', Gio.SettingsBindFlags.GET);
+    group.add(buttons);
     group.add(switchRow(settings, 'replace-osd', 'Volume and brightness',
         'Show changes in the notch instead of the GNOME popup'));
     const open = switchRow(settings, 'hud-in-open-notch', 'Volume and brightness while open',

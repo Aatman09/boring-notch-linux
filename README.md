@@ -25,7 +25,8 @@ the pointer on it.
   month calendar on the right with the selected day's events, which scroll
   when a day is busy.
 - **Notification peeks:** new notifications slide out of the notch instead of
-  showing GNOME banners. Click one to open it. Critical notifications still
+  showing GNOME banners. Click one to open it, or press one of its buttons
+  (up to two, such as Reply) to run that action. Critical notifications still
   use the GNOME banner.
 - **Music:** album art and four bars in the closed notch while something
   plays. The bars follow the bass, mids and treble of what's playing, and both

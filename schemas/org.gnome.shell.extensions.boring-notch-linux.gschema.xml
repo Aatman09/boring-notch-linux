@@ -88,6 +88,10 @@
       <default>true</default>
       <summary>Show new notifications in the notch instead of as GNOME banners</summary>
     </key>
+    <key name="notification-buttons" type="b">
+      <default>true</default>
+      <summary>Show up to two of a notification's own buttons on its peek; pressing one runs that action</summary>
+    </key>
     <key name="show-downloads" type="b">
       <default>true</default>
       <summary>Show browser downloads in the notch</summary>

@@ -600,6 +600,12 @@
   spacing: 8px;
 }
 
+/* A notification's own buttons, beside its text */
+
+.bn-notification-buttons {
+  spacing: 6px;
+}
+
 /* The marquee boxes: narrower than the labels inside them, so long text
    has somewhere to slide. Short text fits and never moves. */
 .bn-peek-title {
