@@ -28,28 +28,44 @@ class BatteryPanel extends St.BoxLayout {
             visible: false,
         });
         this._battery = battery;
-        this._title = new St.Label({style_class: 'bn-battery-panel-title', x_align: Clutter.ActorAlign.CENTER});
-        this.add_child(this._title);
-
-        this._rows = {};
-        for (const key of ['status', 'time', 'health', 'rate', 'saver']) {
-            const row = new St.BoxLayout({style_class: 'bn-battery-panel-row', x_align: Clutter.ActorAlign.CENTER});
-            const name = new St.Label({style_class: 'bn-battery-panel-name'});
-            const value = new St.Label({style_class: 'bn-battery-panel-value'});
-            row.add_child(name);
-            row.add_child(value);
-            this.add_child(row);
-            this._rows[key] = {row, name, value};
-        }
-
+        // The title and the way to GNOME's power settings share the top
+        // line, and the rows sit in two columns: the panel has to fit the
+        // open notch's shortest tabs.
+        // Spacers above and below centre the content in the page.
+        this.add_child(new St.Widget({y_expand: true}));
+        const top = new St.BoxLayout({style_class: 'bn-battery-panel-top', x_align: Clutter.ActorAlign.CENTER});
+        this._title = new St.Label({style_class: 'bn-battery-panel-title', y_align: Clutter.ActorAlign.CENTER});
         const settings = new St.Button({
-            style_class: 'bn-chip bn-battery-panel-settings',
+            style_class: 'bn-chip',
             label: 'Power settings…',
             can_focus: true,
-            x_align: Clutter.ActorAlign.CENTER,
+            y_align: Clutter.ActorAlign.CENTER,
         });
         settings.connect('clicked', () => openSettingsPanel('power'));
-        this.add_child(settings);
+        top.add_child(this._title);
+        top.add_child(settings);
+        this.add_child(top);
+
+        const columns = new St.BoxLayout({style_class: 'bn-battery-panel-columns', x_align: Clutter.ActorAlign.CENTER});
+        this.add_child(columns);
+        this._rows = {};
+        for (const keys of [['status', 'time', 'health'], ['rate', 'saver']]) {
+            const column = new St.BoxLayout({
+                orientation: Clutter.Orientation.VERTICAL,
+                style_class: 'bn-battery-panel-column',
+            });
+            columns.add_child(column);
+            for (const key of keys) {
+                const row = new St.BoxLayout({style_class: 'bn-battery-panel-row'});
+                const name = new St.Label({style_class: 'bn-battery-panel-name'});
+                const value = new St.Label({style_class: 'bn-battery-panel-value'});
+                row.add_child(name);
+                row.add_child(value);
+                column.add_child(row);
+                this._rows[key] = {row, name, value};
+            }
+        }
+        this.add_child(new St.Widget({y_expand: true}));
 
         // Updates only reach the labels while the panel is shown (_sync).
         battery.connectObject('changed', () => this._sync(), this);

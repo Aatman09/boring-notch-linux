@@ -250,8 +250,12 @@
 /* Battery details, drawn over the page */
 
 .bn-battery-panel {
-  spacing: 6px;
+  spacing: 10px;
   background-color: #000000;
+}
+
+.bn-battery-panel-top {
+  spacing: 16px;
 }
 
 .bn-battery-panel-title {
@@ -260,29 +264,32 @@
   color: #ebebf0;
 }
 
+.bn-battery-panel-columns {
+  spacing: 28px;
+}
+
+.bn-battery-panel-column {
+  spacing: 4px;
+}
+
 .bn-battery-panel-row {
-  spacing: 14px;
+  spacing: 12px;
   font-size: 13px;
 }
 
-/* Both columns have a fixed width, so every row is as wide as the next and
-   the names and values line up in two columns. */
+/* The names have a fixed width, so the values in a column line up. */
 .bn-battery-panel-name {
-  min-width: 110px;
+  min-width: 90px;
   text-align: right;
   color: #aeaeb2;
   font-weight: 500;
 }
 
 .bn-battery-panel-value {
-  min-width: 110px;
+  min-width: 90px;
   color: #ffffff;
   font-feature-settings: "tnum";
   font-weight: 500;
-}
-
-.bn-battery-panel-settings {
-  margin-top: 6px;
 }
 
 .bn-button {
