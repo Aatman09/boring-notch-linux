@@ -23,7 +23,7 @@ const PARKED_Y = -10000;
 export const OpenView = GObject.registerClass({
     Signals: {'tab-selected': {param_types: [GObject.TYPE_STRING]}},
 }, class OpenView extends St.Widget {
-    _init({settings, battery, timer, stopwatch, pomodoro, dndSettings, openPreferences}) {
+    _init({settings, weather, battery, timer, stopwatch, pomodoro, dndSettings, openPreferences}) {
         super._init({style_class: 'bn-open', opacity: 0});
         this._settings = settings;
 
@@ -37,7 +37,8 @@ export const OpenView = GObject.registerClass({
         const home = new St.Widget({layout_manager: new Clutter.BinLayout()});
         home.add_child(this._player);
         home.add_child(this._idle);
-        this._today = new TodayView(settings);
+        this._today = new TodayView(settings, weather);
+        this._weather = weather;
         this._pages = {home, today: this._today, timer: new TimerView({settings, timer, stopwatch, pomodoro})};
         Object.values(this._pages).forEach(page => this.add_child(page));
         this._tab = 'home';
@@ -59,8 +60,10 @@ export const OpenView = GObject.registerClass({
         this._layoutHeader();
         // Titles only scroll while their page is in view.
         this._player.setScrolling(id === 'home');
-        if (id === 'today')
+        if (id === 'today') {
             this._today.reset();
+            this._weather.refresh();
+        }
     }
 
     setUnread(unread) {

@@ -48,6 +48,23 @@ function spinRow(settings, key, title, subtitle, [lower, upper, step], digits = 
     return row;
 }
 
+// A latitude or longitude typed as text. It is kept only when it is a
+// number within the limit; anything else puts the old value back.
+function coordinateRow(settings, key, title, limit) {
+    const row = new Adw.EntryRow({title});
+    const show = () => {
+        row.text = String(settings.get_double(key));
+    };
+    show();
+    row.connect('apply', () => {
+        const value = Number(row.text);
+        if (row.text.trim() !== '' && Number.isFinite(value) && Math.abs(value) <= limit)
+            settings.set_double(key, value);
+        show();
+    });
+    return row;
+}
+
 // A dropdown for a string setting with a fixed set of values.
 function choiceRow(title, subtitle, choices, get, set) {
     const row = new Adw.ComboRow({
@@ -321,6 +338,19 @@ function informationPage(settings) {
     activities.add(switchRow(settings, 'show-app-progress', 'App progress',
         'Show progress that apps report to GNOME, such as browser downloads and file copies'));
     page.add(activities);
+
+    const weather = new Adw.PreferencesGroup({title: 'Weather'});
+    weather.add(switchRow(settings, 'show-weather', 'Weather on the Today tab',
+        'Shows the temperature and today\'s high and low, from Open-Meteo, when the Today tab opens. The coordinates are sent to open-meteo.com. Off by default.'));
+    const latitude = coordinateRow(settings, 'weather-latitude', 'Latitude (-90 to 90)', 90);
+    const longitude = coordinateRow(settings, 'weather-longitude', 'Longitude (-180 to 180)', 180);
+    const place = new Adw.EntryRow({title: 'Place name (optional)'});
+    settings.bind('weather-place', place, 'text', Gio.SettingsBindFlags.DEFAULT);
+    for (const row of [latitude, longitude, place]) {
+        settings.bind('show-weather', row, 'sensitive', Gio.SettingsBindFlags.GET);
+        weather.add(row);
+    }
+    page.add(weather);
     return page;
 }
 

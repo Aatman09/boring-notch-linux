@@ -578,6 +578,21 @@
   background-color: rgba(255, 255, 255, 0.12);
 }
 
+.bn-weather {
+  spacing: 6px;
+  margin-top: 4px;
+  color: #ebebf0;
+}
+
+.bn-weather-icon {
+  icon-size: 16px;
+}
+
+.bn-weather-text {
+  font-size: 12px;
+  max-width: 240px;
+}
+
 .bn-events-title {
   margin-top: 6px;
   font-size: 13px;

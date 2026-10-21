@@ -232,5 +232,23 @@
       <default>true</default>
       <summary>Show the progress that apps report through the Unity LauncherEntry API (browser downloads, file copies) as a live activity</summary>
     </key>
+    <key name="show-weather" type="b">
+      <default>false</default>
+      <summary>Show the current weather and today's high and low on the Today tab, fetched from Open-Meteo</summary>
+    </key>
+    <key name="weather-latitude" type="d">
+      <range min="-90" max="90"/>
+      <default>0.0</default>
+      <summary>Latitude of the place whose weather the Today tab shows; zero for both coordinates means unset</summary>
+    </key>
+    <key name="weather-longitude" type="d">
+      <range min="-180" max="180"/>
+      <default>0.0</default>
+      <summary>Longitude of the place whose weather the Today tab shows</summary>
+    </key>
+    <key name="weather-place" type="s">
+      <default>''</default>
+      <summary>A name for the weather's place, shown before the temperature</summary>
+    </key>
   </schema>
 </schemalist>

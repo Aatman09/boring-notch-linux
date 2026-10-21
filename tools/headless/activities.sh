@@ -13,7 +13,7 @@ val() {     # val <js>  -> the string the expression returns
     "$HERE/eval.sh" "$1" | python3 -I -c "import sys,re; s=sys.stdin.read(); m=re.match(r\"\(true, '?\\\"?(.*?)\\\"?'?\)\$\", s.strip()); print(m.group(1) if m else 'EVALFAIL ' + s.strip())"
 }
 wait_a_bit() { timeout "$1" tail -f /dev/null; }
-errors() { grep -cE 'JS ERROR|CRITICAL' "$T/shell.log"; }
+errors() { grep -cE 'JS ERROR|CRITICAL|Clutter-ERROR' "$T/shell.log"; }
 client() { DBUS_SESSION_BUS_ADDRESS=$(bus) gjs -m "$HERE/activity-client.js" "$@"; }
 owned() {   # owned -> true or false: does the extension own the bus name
     DBUS_SESSION_BUS_ADDRESS=$(bus) gdbus call --session --dest org.freedesktop.DBus \
@@ -121,7 +121,7 @@ check "enabling owns it again" $([ "$(owned)" = true ] && echo 1 || echo 0) "not
 val 'global.bn = Main.layoutManager.uiGroup.get_children().find(a => a.name === "boring-notch"); "x"' >/dev/null
 
 # 10. Nothing above logged an error.
-check "log has no JS errors or criticals" $([ "$(errors)" = 0 ] && echo 1 || echo 0) "$(errors) lines; first: $(grep -m1 -E 'JS ERROR|CRITICAL' "$T/shell.log" | cut -c1-160)"
+check "log has no JS errors or criticals" $([ "$(errors)" = 0 ] && echo 1 || echo 0) "$(errors) lines; first: $(grep -m1 -E 'JS ERROR|CRITICAL|Clutter-ERROR' "$T/shell.log" | cut -c1-160)"
 
 echo
 [ "$failures" = 0 ] && echo "all checks passed" || echo "$failures check(s) failed"

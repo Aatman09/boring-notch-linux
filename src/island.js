@@ -185,6 +185,7 @@ class Island extends St.Widget {
 
         this._openView = new OpenView({
             settings,
+            weather: sources.weather,
             battery: this._battery,
             timer: sources.timer,
             stopwatch: sources.stopwatch,

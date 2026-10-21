@@ -21,6 +21,7 @@ import {PrivacyMonitor} from './src/privacy.js';
 import {RecordingMonitor} from './src/recording.js';
 import {ScaledStylesheet} from './src/style.js';
 import {exclusive, Pomodoro, Stopwatch, Timer} from './src/timer.js';
+import {WeatherSource} from './src/weather.js';
 import {Zoom} from './src/zoom.js';
 
 /**
@@ -106,6 +107,7 @@ export default class BoringNotchExtension extends Extension {
             audioRoute: new AudioRouteMonitor(),
             activities: new ActivityApi(this._settings),
             launcher: new LauncherEntryWatcher(this._settings),
+            weather: new WeatherSource(this._settings),
         };
 
         this._island = new Island({
