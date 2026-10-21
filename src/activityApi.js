@@ -123,13 +123,22 @@ export class ActivityApi extends EventEmitter {
         this.emit('changed');
     }
 
-    // At most MAX_CALLS_PER_SECOND calls from one sender in any second; the
-    // rest are refused.
-    _admit(sender) {
+    // Whether a call may go ahead. The object stays exported on the shell's
+    // own connection, where a program could still reach it through the
+    // shell's unique bus name, so the setting is checked on every call; and
+    // at most MAX_CALLS_PER_SECOND calls from one sender in any second are
+    // let through. A refused call is answered here.
+    _admit(invocation) {
+        if (!this._settings.get_boolean('allow-external-activities')) {
+            invocation.return_dbus_error(refusal('Disabled'), 'Other programs\' activities are switched off');
+            return false;
+        }
+        const sender = invocation.get_sender();
         const now = GLib.get_monotonic_time();
         const recent = (this._calls.get(sender) ?? []).filter(t => now - t < GLib.USEC_PER_SEC);
         if (recent.length >= MAX_CALLS_PER_SECOND) {
             this._calls.set(sender, recent);
+            invocation.return_dbus_error(refusal('TooManyCalls'), 'Too many calls in one second');
             return false;
         }
         recent.push(now);
@@ -164,11 +173,9 @@ export class ActivityApi extends EventEmitter {
     }
 
     _upsert([id, icon, title, detail, progress], invocation) {
-        const sender = invocation.get_sender();
-        if (!this._admit(sender)) {
-            invocation.return_dbus_error(refusal('TooManyCalls'), 'Too many calls in one second');
+        if (!this._admit(invocation))
             return;
-        }
+        const sender = invocation.get_sender();
         if (!isText(id, ID_MAX) || id === '' || !isIconName(icon) ||
             !isText(title, TITLE_MAX) || !isText(detail, DETAIL_MAX)) {
             invocation.return_dbus_error(refusal('InvalidArgs'), 'Id, icon, title or detail is not valid');
@@ -192,22 +199,17 @@ export class ActivityApi extends EventEmitter {
     }
 
     EndAsync([id], invocation) {
-        const sender = invocation.get_sender();
-        if (!this._admit(sender)) {
-            invocation.return_dbus_error(refusal('TooManyCalls'), 'Too many calls in one second');
+        if (!this._admit(invocation))
             return;
-        }
+        const sender = invocation.get_sender();
         if (this._activities.delete(`${sender} ${id}`))
             this.emit('changed');
         invocation.return_value(null);
     }
 
     PeekAsync([icon, title, body, timeoutMs], invocation) {
-        const sender = invocation.get_sender();
-        if (!this._admit(sender)) {
-            invocation.return_dbus_error(refusal('TooManyCalls'), 'Too many calls in one second');
+        if (!this._admit(invocation))
             return;
-        }
         if (!isIconName(icon) || !isText(title, TITLE_MAX) || !isText(body, DETAIL_MAX)) {
             invocation.return_dbus_error(refusal('InvalidArgs'), 'Icon, title or body is not valid');
             return;

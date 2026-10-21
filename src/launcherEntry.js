@@ -53,7 +53,9 @@ export class LauncherEntryWatcher extends EventEmitter {
         if (!appId)
             return;
         const key = `${sender} ${appId}`;
-        const visible = properties['progress-visible']?.unpack() ?? false;
+        // Apps often send only what changed, so an update without
+        // progress-visible keeps the entry as it was.
+        const visible = properties['progress-visible']?.unpack() ?? this._entries.has(key);
         if (!visible) {
             if (this._entries.delete(key))
                 this.emit('changed');

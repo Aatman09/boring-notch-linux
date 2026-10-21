@@ -120,6 +120,37 @@ val "Main.extensionManager.enableExtension('$UUID'); 'x'" >/dev/null; wait_a_bit
 check "enabling owns it again" $([ "$(owned)" = true ] && echo 1 || echo 0) "not owned"
 val 'global.bn = Main.layoutManager.uiGroup.get_children().find(a => a.name === "boring-notch"); "x"' >/dev/null
 
+# 9b. With the setting off, the shell's unique name does not get around it.
+val 'global.bn._clearPeeks(); global.bn._settings.set_boolean("allow-external-activities", false); "x"' >/dev/null; wait_a_bit 1
+shell=$(DBUS_SESSION_BUS_ADDRESS=$(bus) gdbus call --session --dest org.freedesktop.DBus --object-path /org/freedesktop/DBus \
+    --method org.freedesktop.DBus.GetNameOwner org.gnome.Shell | tr -d "(),'")
+DBUS_SESSION_BUS_ADDRESS=$(bus) gdbus call --session --dest "$shell" --object-path /org/gnome/Shell/Extensions/BoringNotch \
+    --method org.gnome.Shell.Extensions.BoringNotch.Peek dialog-information-symbolic "Around the switch" "" 3000 >/dev/null 2>&1
+wait_a_bit 0.5
+check "with the setting off, a call through the shell's unique name is refused" \
+    $([ "$(show_peek_check)" = false ] && echo 1 || echo 0) "a peek showed"
+val 'global.bn._settings.set_boolean("allow-external-activities", true); "x"' >/dev/null
+
+# 9c. An update that leaves out progress-visible keeps the app's entry.
+DBUS_SESSION_BUS_ADDRESS=$(bus) python3 -I - <<'PY' &
+import time
+from gi.repository import Gio, GLib
+bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+def emit(props):
+    bus.emit_signal(None, '/com/canonical/unity/launcherentry/1', 'com.canonical.Unity.LauncherEntry', 'Update',
+        GLib.Variant('(sa{sv})', ('application://org.gnome.Nautilus.desktop', props)))
+    bus.flush_sync(None)
+emit({'progress': GLib.Variant('d', 0.2), 'progress-visible': GLib.Variant('b', True)})
+time.sleep(1)
+emit({'progress': GLib.Variant('d', 0.5)})
+time.sleep(5)
+PY
+emitter=$!
+wait_a_bit 2.5
+check "a progress update without progress-visible keeps the entry" \
+    $(launcher | grep -q " 0.5" && echo 1 || echo 0) "launcher=$(launcher)"
+kill $emitter 2>/dev/null; wait_a_bit 1
+
 # 10. Nothing above logged an error.
 check "log has no JS errors or criticals" $([ "$(errors)" = 0 ] && echo 1 || echo 0) "$(errors) lines; first: $(grep -m1 -E 'JS ERROR|CRITICAL|Clutter-ERROR' "$T/shell.log" | cut -c1-160)"
 
