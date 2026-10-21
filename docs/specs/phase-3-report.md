@@ -4,8 +4,9 @@ Status: all coding was done before this verification pass (commits `7f7a9a4`
 to `c58f8ec`, see the progress file). This pass ran the verification in the
 headless shell at 125% and 100% scale, took the evidence, and measured CPU. It
 found no defect that needed a source change, so no `src/` commits were made.
-Two open items need a decision before merge: the closed-notch idle CPU (about
-1.7%, against the 0.3 to 0.6% target) and the art-glow edge (see "Still open").
+One open item needs a decision: the art-glow edge (see "Still open"). The
+closed-notch idle CPU first measured here at about 1.7% was a start-up effect;
+a second measurement after review gives 0.3 to 0.5% (see the CPU section).
 Nothing is pushed.
 
 ## Setup notes
@@ -95,14 +96,14 @@ that ran the sweep). The 100% sweep was not measured.
 | Recording view on (closed) | 1.23% |
 
 Compare: phase 2 closed idle was 0.33% (`phase-2-report.md`). The phase 3 spec
-asks for 0.3 to 0.6%. **The closed notch is about 1.7% and is not explained.**
-The extension costs about 1.5 points of CPU while closed (0.17% without it),
-with or without music, and open it costs about 0.45%, which is lower than
-closed. I checked the animator timeline (not running when closed), the timers
-listed in `src/` (they stop when idle), and the recording tick (only while
-recording). I did not find the source. The phase 3 progress notes already
-recorded 1.0 to 1.3% for C4, so the rise probably came in during phase 3 and
-was not noticed as a regression. This needs a bisect (or a profile) before merge.
+asks for 0.3 to 0.6%. The figures above were taken in the session that had just
+run the sweep and were first read as a regression. **They are not a steady
+state.** A reviewer measured a fresh 125% session at the same commit (`c58f8ec`)
+with 30 s windows: the first window after start-up 1.53% (settling), the second
+0.47%, with the extension disabled 0.23%, and after enabling it again 0.30%.
+So the closed notch costs about 0.1 to 0.25 points at idle, within the target.
+Open, playing, it costs about 0.45% here, and the recording view about 1.2%
+(a one-second tick that re-lays out the notch; not re-measured).
 
 ## Disable and enable (step 5)
 
@@ -145,8 +146,8 @@ above show 0. This is noted under "Still open" as a small hardening point.
 
 ## Still open
 
-1. **Closed idle CPU about 1.7%, against the 0.3 to 0.6% target.** Not explained
-   (see the CPU section). Must be fixed or explained before merge.
+1. ~~Closed idle CPU about 1.7%~~ Resolved by review: a start-up effect, steady
+   state 0.3 to 0.5% (see the CPU section).
 2. **Art glow edge (visual).** At 125% the glow is clipped to the cover's square,
    so its left and top edges read as a hard box against the black notch
    (`art-glow-125.png`, zoom in on the cover). This is a judgement about the look,
