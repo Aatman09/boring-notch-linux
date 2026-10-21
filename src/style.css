@@ -407,6 +407,14 @@
   font-weight: 500;
 }
 
+.bn-idle-next {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #ebebf0;
+  font-weight: 500;
+  font-feature-settings: "tnum";
+}
+
 .bn-idle-hint {
   margin-top: 8px;
   font-size: 12px;
@@ -569,6 +577,11 @@
   spacing: 10px;
   font-size: 13px;
   font-weight: 500;
+}
+
+.bn-event-color {
+  width: 3px;
+  border-radius: 2px;
 }
 
 .bn-event-time {

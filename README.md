@@ -23,7 +23,9 @@ the pointer on it.
   dot when notifications are waiting. Clicking the notch or pressing Super+V
   opens the **Today** tab: GNOME's own notification list on the left, and the
   month calendar on the right with the selected day's events, which scroll
-  when a day is busy.
+  when a day is busy. Each event has a bar in its calendar's colour, and
+  all-day events can be hidden. With nothing playing, the Home tab names the
+  next event today under the date, with its time.
 - **Notification peeks:** new notifications slide out of the notch instead of
   showing GNOME banners. Click one to open it. Critical notifications still
   use the GNOME banner.

@@ -3,6 +3,7 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import Graphene from 'gi://Graphene';
+import Pango from 'gi://Pango';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
 
@@ -11,6 +12,7 @@ import * as Calendar from 'resource:///org/gnome/shell/ui/calendar.js';
 import * as Slider from 'resource:///org/gnome/shell/ui/slider.js';
 
 import {BatteryPanel} from './batteryPanel.js';
+import {CalendarSources} from './calendarSources.js';
 import {AlbumArt, MarqueeLabel, formatTime} from './widgets.js';
 
 const formatSeconds = s => formatTime(s * GLib.USEC_PER_SEC);
@@ -401,16 +403,25 @@ class IdleView extends St.BoxLayout {
             text: 'Play something to see it here',
             x_align: Clutter.ActorAlign.CENTER,
         });
+        this._next = new St.Label({style_class: 'bn-idle-next', x_align: Clutter.ActorAlign.CENTER, visible: false});
+        this._next.clutter_text.ellipsize = Pango.EllipsizeMode.END;
         this.add_child(this._time);
         this.add_child(this._date);
+        this.add_child(this._next);
         this.add_child(hint);
         this.tick();
     }
 
-    tick() {
+    // `next` is the event to name under the date, or null for none.
+    tick(next = null) {
         const now = GLib.DateTime.new_now_local();
         this._time.text = now.format('%H:%M');
         this._date.text = now.format('%A, %e %B').replace(/\s+/g, ' ');
+        this._next.visible = next !== null;
+        if (next) {
+            const start = GLib.DateTime.new_from_unix_local(next.date.getTime() / 1000);
+            this._next.text = `Up next  ${start.format('%H:%M')}  ${next.summary}`;
+        }
     }
 });
 
@@ -421,9 +432,11 @@ class IdleView extends St.BoxLayout {
  */
 const TodayView = GObject.registerClass(
 class TodayView extends St.BoxLayout {
-    _init() {
+    _init(settings) {
         super._init({style_class: 'bn-today', x_expand: true, y_expand: true});
         this.layout_manager.homogeneous = true;
+        this._settings = settings;
+        this._sources = new CalendarSources();
 
         this._messages = new Calendar.CalendarMessageList();
         this._messages.add_style_class_name('bn-messages');
@@ -482,7 +495,24 @@ class TodayView extends St.BoxLayout {
 
         this._date = new Date();
         this._eventSource.connectObject('changed', () => this._syncEvents(), this);
-        this.connect('destroy', () => this._eventSource.destroy());
+        this._sources.connectObject('changed', () => this._syncEvents(), this);
+        settings.connectObject(
+            'changed::hide-all-day-events', () => this._syncEvents(),
+            'changed::event-colors', () => this._syncEvents(),
+            this);
+        this.connect('destroy', () => {
+            this._eventSource.destroy();
+            this._sources.destroy();
+        });
+    }
+
+    // The next timed event today that has not started yet, for the Home
+    // tab, or null. It reads the events the calendar has loaded.
+    nextEvent() {
+        const now = new Date();
+        const end = new Date(now);
+        end.setHours(24, 0, 0, 0);
+        return this._eventSource.getEvents(now, end).find(event => event.date > now) ?? null;
     }
 
     // Back to today each time the tab opens.
@@ -507,9 +537,20 @@ class TodayView extends St.BoxLayout {
 
         this._events.destroy_all_children();
         const events = this._eventSource.getEvents(begin, end);
+        const showColors = this._settings.get_boolean('event-colors');
         for (const event of events) {
-            const row = new St.BoxLayout({style_class: 'bn-event'});
             const allDay = event.date <= begin && event.end >= end;
+            if (allDay && this._settings.get_boolean('hide-all-day-events'))
+                continue;
+            const row = new St.BoxLayout({style_class: 'bn-event'});
+            // A bar in the calendar's colour. Without a colour it is clear,
+            // so the times still line up.
+            if (showColors) {
+                row.add_child(new St.Widget({
+                    style_class: 'bn-event-color',
+                    style: `background-color: ${this._sources.colorOf(event.id) ?? 'transparent'};`,
+                }));
+            }
             const start = GLib.DateTime.new_from_unix_local(event.date.getTime() / 1000);
             row.add_child(new St.Label({
                 style_class: 'bn-event-time',
@@ -518,7 +559,7 @@ class TodayView extends St.BoxLayout {
             row.add_child(new St.Label({style_class: 'bn-event-summary', text: event.summary, x_expand: true}));
             this._events.add_child(row);
         }
-        if (events.length === 0)
+        if (this._events.get_n_children() === 0)
             this._events.add_child(new St.Label({style_class: 'bn-event-empty', text: 'No events'}));
     }
 });
@@ -603,6 +644,7 @@ export const OpenView = GObject.registerClass({
 }, class OpenView extends St.Widget {
     _init({settings, battery, timer, dndSettings, openPreferences}) {
         super._init({style_class: 'bn-open', opacity: 0});
+        this._settings = settings;
 
         this._header = new Header(battery, dndSettings, openPreferences, settings);
         this._header.connect('tab-selected', (_h, id) => this.emit('tab-selected', id));
@@ -614,7 +656,7 @@ export const OpenView = GObject.registerClass({
         const home = new St.Widget({layout_manager: new Clutter.BinLayout()});
         home.add_child(this._player);
         home.add_child(this._idle);
-        this._today = new TodayView();
+        this._today = new TodayView(settings);
         this._pages = {home, today: this._today, timer: new TimerView(timer)};
         Object.values(this._pages).forEach(page => this.add_child(page));
         this._batteryPanel = new BatteryPanel(battery);
@@ -730,6 +772,6 @@ export const OpenView = GObject.registerClass({
         if (this._player.visible)
             this._player.tick();
         else
-            this._idle.tick();
+            this._idle.tick(this._settings.get_boolean('up-next') ? this._today.nextEvent() : null);
     }
 });

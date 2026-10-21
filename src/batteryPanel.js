@@ -60,7 +60,6 @@ class BatteryPanel extends St.BoxLayout {
 
         // Only the open panel needs the numbers, so it listens while shown.
         battery.connectObject('changed', () => this._sync(), this);
-        this.connect('destroy', () => battery.disconnectObject(this));
     }
 
     open() {

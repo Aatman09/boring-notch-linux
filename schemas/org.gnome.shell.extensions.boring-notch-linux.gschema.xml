@@ -173,5 +173,17 @@
       <default>true</default>
       <summary>Peek when the power profile changes to or from Power Saver</summary>
     </key>
+    <key name="hide-all-day-events" type="b">
+      <default>false</default>
+      <summary>Leave the all-day events out of the event list in the Today tab</summary>
+    </key>
+    <key name="event-colors" type="b">
+      <default>true</default>
+      <summary>Show a bar in each calendar's colour beside its events in the Today tab</summary>
+    </key>
+    <key name="up-next" type="b">
+      <default>true</default>
+      <summary>Name the next event today, with its time, on the Home tab when nothing is playing</summary>
+    </key>
   </schema>
 </schemalist>
