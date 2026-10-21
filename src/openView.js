@@ -156,12 +156,8 @@ const Header = GObject.registerClass({
     }
 
     setActiveTab(id) {
-        for (const [tabId, tab] of this._tabs) {
-            if (tabId === id)
-                tab.add_style_pseudo_class('checked');
-            else
-                tab.remove_style_pseudo_class('checked');
-        }
+        for (const [tabId, tab] of this._tabs)
+            tab.checked = tabId === id;
     }
 
     setUnread(unread) {
@@ -355,20 +351,13 @@ class MediaPlayer extends St.BoxLayout {
                 b[id].reactive = player.canSeek;
         }
         if (b.shuffle)
-            this._setChecked(b.shuffle, player.shuffle);
+            b.shuffle.checked = player.shuffle;
         if (b.repeat) {
-            this._setChecked(b.repeat, player.loopStatus !== 'None');
+            b.repeat.checked = player.loopStatus !== 'None';
             b.repeat.child.icon_name = player.loopStatus === 'Track'
                 ? 'media-playlist-repeat-song-symbolic'
                 : 'media-playlist-repeat-symbolic';
         }
-    }
-
-    _setChecked(button, checked) {
-        if (checked)
-            button.add_style_pseudo_class('checked');
-        else
-            button.remove_style_pseudo_class('checked');
     }
 
     tick() {
@@ -621,30 +610,28 @@ class TimerView extends St.BoxLayout {
         this.add_child(this._time);
 
         const modes = new St.BoxLayout({style_class: 'bn-timer-presets', x_align: Clutter.ActorAlign.CENTER});
-        this._modeChips = TIMER_MODES.map(({id, label}) => {
+        this._modeChips = new Map(TIMER_MODES.map(({id, label}) => {
             const button = new St.Button({style_class: 'bn-chip', label, can_focus: true});
             button.connect('clicked', () => {
                 this._selected = id;
                 this._sync();
             });
-            button._mode = id;
             modes.add_child(button);
-            return button;
-        });
+            return [id, button];
+        }));
         this._modeRow = modes;
         this.add_child(modes);
 
         const presets = new St.BoxLayout({style_class: 'bn-timer-presets', x_align: Clutter.ActorAlign.CENTER});
-        this._presets = TIMER_PRESETS.map(minutes => {
+        this._presets = new Map(TIMER_PRESETS.map(minutes => {
             const button = new St.Button({style_class: 'bn-chip', label: `${minutes} min`, can_focus: true});
             button.connect('clicked', () => {
                 this._minutes = minutes;
                 this._start();
             });
-            button._minutes = minutes;
             presets.add_child(button);
-            return button;
-        });
+            return [minutes, button];
+        }));
         this._presetRow = presets;
         this.add_child(presets);
 
@@ -668,7 +655,10 @@ class TimerView extends St.BoxLayout {
 
         for (const model of Object.values(this._models))
             model.connectObject('changed', () => this._sync(), this);
-        settings.connectObject('changed', () => this._sync(), this);
+        settings.connectObject(
+            'changed::timer-modes', () => this._sync(),
+            'changed::pomodoro-work-minutes', () => this._sync(),
+            this);
         this._sync();
     }
 
@@ -709,21 +699,13 @@ class TimerView extends St.BoxLayout {
         this._reset.reactive = model.active;
 
         this._modeRow.visible = this._settings.get_boolean('timer-modes');
-        for (const button of this._modeChips) {
-            if (button._mode === mode)
-                button.add_style_pseudo_class('checked');
-            else
-                button.remove_style_pseudo_class('checked');
-        }
+        for (const [id, button] of this._modeChips)
+            button.checked = id === mode;
 
         this._presetRow.visible = mode === 'timer';
         const selected = model.active ? Math.round(this._models.timer.duration / 60) : this._minutes;
-        for (const button of this._presets) {
-            if (button._minutes === selected)
-                button.add_style_pseudo_class('checked');
-            else
-                button.remove_style_pseudo_class('checked');
-        }
+        for (const [minutes, button] of this._presets)
+            button.checked = minutes === selected;
         this._phase.visible = mode === 'pomodoro';
         if (mode === 'pomodoro')
             this._phase.text = model.phase === 'break' ? 'Break' : 'Work';

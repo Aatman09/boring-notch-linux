@@ -1,21 +1,14 @@
 import Clutter from 'gi://Clutter';
-import Gio from 'gi://Gio';
 import GObject from 'gi://GObject';
 import St from 'gi://St';
+
+import {openSettingsPanel} from './widgets.js';
 
 // "1 h 20 min", or "45 min" under an hour.
 function formatDuration(seconds) {
     const minutes = Math.round(seconds / 60);
     const hours = Math.floor(minutes / 60);
     return hours > 0 ? `${hours} h ${minutes % 60} min` : `${minutes} min`;
-}
-
-function openPowerSettings() {
-    try {
-        Gio.Subprocess.new(['gnome-control-center', 'power'], Gio.SubprocessFlags.NONE);
-    } catch (e) {
-        console.warn(`Boring Notch: cannot open the power settings: ${e.message}`);
-    }
 }
 
 /**
@@ -55,10 +48,10 @@ class BatteryPanel extends St.BoxLayout {
             can_focus: true,
             x_align: Clutter.ActorAlign.CENTER,
         });
-        settings.connect('clicked', () => openPowerSettings());
+        settings.connect('clicked', () => openSettingsPanel('power'));
         this.add_child(settings);
 
-        // Only the open panel needs the numbers, so it listens while shown.
+        // Updates only reach the labels while the panel is shown (_sync).
         battery.connectObject('changed', () => this._sync(), this);
     }
 

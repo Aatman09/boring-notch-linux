@@ -1,5 +1,6 @@
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
+import Gio from 'gi://Gio';
 import GObject from 'gi://GObject';
 import Graphene from 'gi://Graphene';
 import St from 'gi://St';
@@ -158,6 +159,15 @@ export function formatTime(us) {
     const minutes = Math.floor(total / 60);
     const seconds = String(total % 60).padStart(2, '0');
     return `${minutes}:${seconds}`;
+}
+
+// Opens a panel of GNOME's Settings, such as 'power' or 'privacy'.
+export function openSettingsPanel(panel) {
+    try {
+        Gio.Subprocess.new(['gnome-control-center', panel], Gio.SubprocessFlags.NONE);
+    } catch (e) {
+        console.warn(`Boring Notch: cannot open the ${panel} settings: ${e.message}`);
+    }
 }
 
 // Long titles scroll instead of being cut off. The head is shown for this

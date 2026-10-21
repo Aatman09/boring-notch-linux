@@ -4,6 +4,7 @@ import St from 'gi://St';
 
 import {BatterySneakView, IconTextView, NotificationPeekView, ScreenshotPeekView} from './closedViews.js';
 import {Priority} from './peekQueue.js';
+import {openSettingsPanel} from './widgets.js';
 
 const BATTERY_TIMEOUT_MS = 2500;
 const BATTERY_LEVEL_TIMEOUT_MS = 4000;
@@ -188,14 +189,7 @@ export class SystemPeeks {
                 title: `${appName || 'An app'} is using the ${device}`,
             }),
             timeout: PRIVACY_TIMEOUT_MS,
-            action: () => {
-                try {
-                    Gio.Subprocess.new(['gnome-control-center', 'privacy'],
-                        Gio.SubprocessFlags.NONE);
-                } catch (e) {
-                    console.warn(`Boring Notch: cannot open the privacy panel: ${e.message}`);
-                }
-            },
+            action: () => openSettingsPanel('privacy'),
             key: 'privacy',
         });
     }

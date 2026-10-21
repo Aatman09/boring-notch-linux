@@ -296,6 +296,7 @@ export class MediaManager extends EventEmitter {
             'changed::preferred-player', () => this._onSelectionChanged(),
             'changed::ignored-players', () => this._onSelectionChanged(),
             this);
+        this._readSelection();
 
         this._nameWatchId = Gio.DBus.session.signal_subscribe(
             'org.freedesktop.DBus', 'org.freedesktop.DBus', 'NameOwnerChanged',
@@ -379,7 +380,15 @@ export class MediaManager extends EventEmitter {
             .filter(name => name !== '');
     }
 
+    // activePlayer is asked for on every update, so the names are read
+    // once per change of the settings, not on each call.
+    _readSelection() {
+        this._ignored = this._selectionNames('ignored-players');
+        this._preferred = this._selectionNames('preferred-player');
+    }
+
     _onSelectionChanged() {
+        this._readSelection();
         this.emit('changed');
         // A selection change is not a track change: what the player the
         // selection points at is already playing must not surface as a
@@ -388,11 +397,9 @@ export class MediaManager extends EventEmitter {
     }
 
     get activePlayer() {
-        const ignored = this._selectionNames('ignored-players');
-        const preferred = this._selectionNames('preferred-player');
         const players = [...this._players.values()]
-            .filter(p => p.hasTrack && !matchesAny(p, ignored));
-        const favourite = players.find(p => matchesAny(p, preferred)) ?? null;
+            .filter(p => p.hasTrack && !matchesAny(p, this._ignored));
+        const favourite = players.find(p => matchesAny(p, this._preferred)) ?? null;
         const lastActive = players.includes(this._lastActive) ? this._lastActive : null;
         return (favourite?.playing ? favourite : null) ??
             (lastActive?.playing ? lastActive : null) ??

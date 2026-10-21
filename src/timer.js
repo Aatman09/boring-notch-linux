@@ -3,19 +3,23 @@ import GLib from 'gi://GLib';
 import {EventEmitter} from 'resource:///org/gnome/shell/misc/signals.js';
 
 /**
- * Timers linked with exclusive() are exclusive: when one starts counting,
- * the others reset. The countdown, the stopwatch and the Pomodoro are
- * linked this way, wherever they are started from.
+ * Makes the timers exclusive: when one starts counting, the others reset.
+ * The countdown, the stopwatch and the Pomodoro are linked this way, so it
+ * holds wherever they are started from. Each emits 'started' for this.
  */
 export function exclusive(...timers) {
     for (const timer of timers) {
-        timer._peers = timers.filter(t => t !== timer);
+        timer.connect('started', () => timers.forEach(other => {
+            if (other !== timer)
+                other.reset();
+        }));
     }
 }
 
 /**
- * A countdown timer. Emits 'changed' every second while it runs and on
- * every state change, and 'finished' when it reaches zero.
+ * A countdown timer. Emits 'started' when it starts or resumes counting,
+ * 'changed' every second while it runs and on every state change, and
+ * 'finished' when it reaches zero.
  */
 export class Timer extends EventEmitter {
     constructor() {
@@ -61,8 +65,7 @@ export class Timer extends EventEmitter {
     resume() {
         if (this.running || this._remaining <= 0)
             return;
-        // Starting counts as starting: the peers give way.
-        this._peers?.forEach(peer => peer.reset());
+        this.emit('started');
         this._endTime = GLib.get_monotonic_time() + this._remaining * GLib.USEC_PER_SEC;
         this._tickId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, () => {
             if (this.remaining > 0) {
@@ -105,8 +108,9 @@ export class Timer extends EventEmitter {
 }
 
 /**
- * A stopwatch that counts up from zero. Emits 'changed' every second while
- * it runs and on every state change.
+ * A stopwatch that counts up from zero. Emits 'started' when it starts or
+ * resumes, and 'changed' every second while it runs and on every state
+ * change.
  */
 export class Stopwatch extends EventEmitter {
     constructor() {
@@ -138,8 +142,7 @@ export class Stopwatch extends EventEmitter {
     resume() {
         if (this.running)
             return;
-        // Starting counts as starting: the peers give way.
-        this._peers?.forEach(peer => peer.reset());
+        this.emit('started');
         this._startTime = GLib.get_monotonic_time();
         this._tickId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, () => {
             this.emit('changed');
@@ -183,8 +186,8 @@ export class Stopwatch extends EventEmitter {
 /**
  * Work and break phases, one after the other: work, then break, then work
  * again, each starting as the last ends. The phase lengths come from the
- * settings. Emits 'changed' as the countdown ticks, and 'finished' with the
- * phase that ended when one ends.
+ * settings. Emits 'started' when a phase starts counting, 'changed' as the
+ * countdown ticks, and 'finished' with the phase that ended when one ends.
  */
 export class Pomodoro extends EventEmitter {
     constructor(settings) {
@@ -193,6 +196,7 @@ export class Pomodoro extends EventEmitter {
         this._countdown = new Timer();
         this._work = true;
         this._countdown.connectObject(
+            'started', () => this.emit('started'),
             'changed', () => this.emit('changed'),
             'finished', () => this._onFinished(),
             this);
@@ -215,14 +219,11 @@ export class Pomodoro extends EventEmitter {
     }
 
     start() {
-        // Starting counts as starting: the peers give way.
-        this._peers?.forEach(peer => peer.reset());
         this._work = true;
         this._countdown.start(this._phaseSeconds());
     }
 
     resume() {
-        this._peers?.forEach(peer => peer.reset());
         this._countdown.resume();
     }
 
