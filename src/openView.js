@@ -518,6 +518,11 @@ class TodayView extends St.BoxLayout {
         return this._eventSource.getEvents(now, end).find(event => event.date > now) ?? null;
     }
 
+    // The calendar's events, shared with the meeting countdown.
+    get eventSource() {
+        return this._eventSource;
+    }
+
     // Back to today each time the tab opens.
     reset() {
         this._date = new Date();
@@ -803,6 +808,16 @@ export const OpenView = GObject.registerClass({
 
     closeBatteryPanel() {
         this._batteryPanel.hide();
+    }
+
+    get eventSource() {
+        return this._today.eventSource;
+    }
+
+    // The Today tab's month is the range the shell's events are loaded for,
+    // so it goes back to today's month when the notch closes.
+    resetToday() {
+        this._today.reset();
     }
 
     get busy() {

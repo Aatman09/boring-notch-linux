@@ -314,7 +314,7 @@ class Island extends St.Widget {
             'changed', () => this._syncTimer(),
             'finished', (_p, phase) => this._onTimerFinished(phase === 'work' ? 'Break time' : 'Back to work'),
             this);
-        this._upcoming = new UpcomingEvents(settings);
+        this._upcoming = new UpcomingEvents(settings, this._openView.eventSource);
         this._upcoming.connectObject('changed', () => this._syncMeeting(), this);
         downloads.connectObject(
             'changed', () => this._syncDownloads(),
@@ -408,6 +408,7 @@ class Island extends St.Widget {
 
         this._showOpenView(false);
         this._openView.closeBatteryPanel();
+        this._openView.resetToday();
         this._upcoming.shown = true;
         this._fade(this._closedLayer, true, FADE_MS);
         this._openView.stopTicking();

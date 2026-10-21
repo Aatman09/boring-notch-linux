@@ -1,6 +1,5 @@
 import GLib from 'gi://GLib';
 
-import * as Calendar from 'resource:///org/gnome/shell/ui/calendar.js';
 import {EventEmitter} from 'resource:///org/gnome/shell/misc/signals.js';
 
 const MINUTE_MS = 60 * 1000;
@@ -8,27 +7,26 @@ const DAY_MS = 24 * 60 * MINUTE_MS;
 
 /**
  * The next timed event that starts within the window set by
- * meeting-lead-minutes, for the countdown in the closed notch. It has its
- * own event source, so the Today tab's month range does not change what it
- * sees. Emits 'changed' whenever it recomputes, which is when the source
+ * meeting-lead-minutes, for the countdown in the closed notch. It reads the
+ * Today tab's event source: GNOME's calendar server keeps one time range for
+ * the whole shell, so a second source asking for its own range would take
+ * the month's events away from the Today tab. Emits 'changed' whenever it recomputes, which is when the source
  * changes, the settings change, the window opens, the event starts, or a
  * minute passes while the countdown is shown. Between those it sleeps.
  */
 export class UpcomingEvents extends EventEmitter {
-    constructor(settings) {
+    constructor(settings, source) {
         super();
         this._settings = settings;
-        this._source = new Calendar.DBusEventSource();
+        this._source = source;
         this._shown = true;
         this._event = null;
         this._timeoutId = 0;
-        this._midnightId = 0;
         this._source.connectObject('changed', () => this._update(), this);
         this._settings.connectObject(
             'changed::show-next-event', () => this._update(),
             'changed::meeting-lead-minutes', () => this._update(),
             this);
-        this._requestRange();
         this._update();
     }
 
@@ -78,24 +76,6 @@ export class UpcomingEvents extends EventEmitter {
                 event.end.getTime() - event.date.getTime() < DAY_MS) ?? null;
     }
 
-    // The range covers today and tomorrow, so every event in the next day is
-    // loaded. It is asked for again at each midnight.
-    _requestRange() {
-        const begin = new Date();
-        begin.setHours(0, 0, 0, 0);
-        const end = new Date(begin);
-        end.setDate(end.getDate() + 2);
-        this._source.requestRange(begin, end);
-
-        const midnight = new Date(begin);
-        midnight.setDate(midnight.getDate() + 1);
-        this._midnightId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, midnight - Date.now(), () => {
-            this._midnightId = 0;
-            this._requestRange();
-            return GLib.SOURCE_REMOVE;
-        });
-    }
-
     _clearTimeout() {
         if (this._timeoutId) {
             GLib.source_remove(this._timeoutId);
@@ -107,12 +87,7 @@ export class UpcomingEvents extends EventEmitter {
     // removes them when it is destroyed; removing them here would make that fail.
     destroy() {
         this._clearTimeout();
-        if (this._midnightId) {
-            GLib.source_remove(this._midnightId);
-            this._midnightId = 0;
-        }
         this._source.disconnectObject(this);
-        this._source.destroy();
         this._settings.disconnectObject(this);
     }
 }
