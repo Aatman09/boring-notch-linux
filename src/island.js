@@ -23,7 +23,7 @@ const formatSeconds = s => formatTime(s * GLib.USEC_PER_SEC);
 // setting is applied. The Today tab is larger to fit the calendar.
 const OPEN_SIZES = {
     home: {width: 640, height: 190},
-    today: {width: 820, height: 460},
+    today: {width: 690, height: 460},
     timer: {width: 640, height: 190},
 };
 const RADII = {
