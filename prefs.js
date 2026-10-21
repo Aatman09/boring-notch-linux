@@ -111,6 +111,19 @@ function generalPage(settings) {
         'Open on the tab used last time instead of Home'));
     page.add(notch);
 
+    const timer = new Adw.PreferencesGroup({title: 'Timer'});
+    timer.add(switchRow(settings, 'timer-modes', 'Stopwatch and Pomodoro',
+        'Modes beside the countdown on the Timer tab. Only one runs at a time, and it shows in the closed notch.'));
+    const work = spinRow(settings, 'pomodoro-work-minutes', 'Pomodoro work',
+        'Minutes of work in each Pomodoro. Work and break follow each other.', [1, 120, 1]);
+    const rest = spinRow(settings, 'pomodoro-break-minutes', 'Pomodoro break',
+        'Minutes of break in each Pomodoro', [1, 60, 1]);
+    for (const row of [work, rest])
+        settings.bind('timer-modes', row, 'sensitive', Gio.SettingsBindFlags.GET);
+    timer.add(work);
+    timer.add(rest);
+    page.add(timer);
+
     const colour = new Adw.PreferencesGroup({title: 'Colour'});
     const [accent, syncAccent] = choiceRow('Accent',
         'Tints the tab chips, the switches and the bars in the notch',
@@ -182,6 +195,19 @@ function musicPage(settings) {
         'Seconds the music stays in the closed notch after pausing', [0, 10, 1]));
     page.add(closed);
 
+    const players = new Adw.PreferencesGroup({title: 'Players'});
+    players.add(switchRow(settings, 'player-selection', 'Preferred and ignored players',
+        'Follow the preferred player when it plays, and never show the ignored ones. Match part of a player\'s name, such as vlc, and separate several ignored names with commas.'));
+    const preferred = new Adw.EntryRow({title: 'Preferred player'});
+    settings.bind('preferred-player', preferred, 'text', Gio.SettingsBindFlags.DEFAULT);
+    const ignored = new Adw.EntryRow({title: 'Ignored players'});
+    settings.bind('ignored-players', ignored, 'text', Gio.SettingsBindFlags.DEFAULT);
+    for (const row of [preferred, ignored])
+        settings.bind('player-selection', row, 'sensitive', Gio.SettingsBindFlags.GET);
+    players.add(preferred);
+    players.add(ignored);
+    page.add(players);
+
     const player = new Adw.PreferencesGroup({title: 'Player buttons', description: 'From left to right'});
     const syncs = [];
     for (let slot = 0; slot < PLAYER_SLOTS; slot++) {
@@ -215,6 +241,10 @@ function peeksPage(settings) {
     });
     group.add(switchRow(settings, 'notifications-in-notch', 'Notifications',
         'Show new notifications in the notch instead of as banners'));
+    const buttons = switchRow(settings, 'notification-buttons', 'Notification buttons',
+        'Show up to two of a notification\'s own buttons, such as Reply, on its peek');
+    settings.bind('notifications-in-notch', buttons, 'sensitive', Gio.SettingsBindFlags.GET);
+    group.add(buttons);
     group.add(switchRow(settings, 'replace-osd', 'Volume and brightness',
         'Show changes in the notch instead of the GNOME popup'));
     const open = switchRow(settings, 'hud-in-open-notch', 'Volume and brightness while open',

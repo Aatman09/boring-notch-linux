@@ -25,7 +25,8 @@ the pointer on it.
   month calendar on the right with the selected day's events, which scroll
   when a day is busy.
 - **Notification peeks:** new notifications slide out of the notch instead of
-  showing GNOME banners. Click one to open it. Critical notifications still
+  showing GNOME banners. Click one to open it, or press one of its buttons
+  (up to two, such as Reply) to run that action. Critical notifications still
   use the GNOME banner.
 - **Music:** album art and four bars in the closed notch while something
   plays. The bars follow the bass, mids and treble of what's playing, and both
@@ -34,9 +35,12 @@ the pointer on it.
   artists slide through twice instead of being cut short. The Home tab has the
   full player with seek bar, shuffle, previous,
   play/pause, next and repeat. This works with any MPRIS player (Spotify,
-  Firefox, Chromium, Rhythmbox, VLC and most others).
+  Firefox, Chromium, Rhythmbox, VLC and most others). In Settings you can
+  name a preferred player, and list players the notch should ignore.
 - **Timer:** the Timer tab has 1–25 minute presets. While it runs, the
-  countdown shows in the closed notch, and it chimes when done.
+  countdown shows in the closed notch, and it chimes when done. A stopwatch
+  and a Pomodoro (25 minutes of work, then 5 of break, both lengths set in
+  Settings) sit beside it; whichever one runs shows in the closed notch.
 - **Downloads:** browser downloads show while they run, and a peek with the
   file name when they finish. Click it to open the Downloads folder.
 - **Volume and brightness:** changes appear inside the notch instead of the

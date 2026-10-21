@@ -382,6 +382,39 @@ class IconTextView extends ClosedView {
     }
 });
 
+/** A notification peek: the text on the left, and up to two of the
+ *  notification's own buttons on the right. The buttons go once the peek
+ *  has faded out, so a button cannot act for a notification that is gone. */
+export const NotificationPeekView = GObject.registerClass(
+class NotificationPeekView extends IconTextView {
+    _init() {
+        super._init('bn-message-sneak', 150, {peek: true});
+        this._buttons = new St.BoxLayout({style_class: 'bn-notification-buttons', y_align: Clutter.ActorAlign.CENTER});
+        this.right.add_child(this._buttons);
+    }
+
+    // `actions` holds {label, activate} for each button, at most two.
+    update({actions = [], ...text}) {
+        super.update(text);
+        this._buttons.destroy_all_children();
+        for (const {label, activate} of actions) {
+            const button = new St.Button({style_class: 'bn-chip', label, can_focus: true});
+            button.connect('clicked', activate);
+            this._buttons.add_child(button);
+        }
+    }
+
+    // Whether the pointer is on one of the buttons, so a press there is left
+    // to the button. The press's own source can be missing, so hover is used.
+    get pointerOnButton() {
+        return this._buttons.get_children().some(button => button.hover);
+    }
+
+    onHidden() {
+        this._buttons.destroy_all_children();
+    }
+});
+
 /** What just started playing: the cover, then title and artist in one row. */
 export const MusicPeekView = GObject.registerClass(
 class MusicPeekView extends ClosedView {

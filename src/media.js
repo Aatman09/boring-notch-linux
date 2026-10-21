@@ -268,19 +268,34 @@ class MprisPlayer extends EventEmitter {
 // Players already playing when the extension starts should not peek.
 const SETTLE_MS = 2000;
 
+// Whether the player's name or bus name contains one of the fragments, which
+// the settings give in lower case.
+function matchesAny(player, fragments) {
+    const names = [player.identity, player.busName].map(name => name.toLowerCase());
+    return fragments.some(fragment => names.some(name => name.includes(fragment)));
+}
+
 /**
  * Tracks every MPRIS player on the session bus and picks the one the notch
- * should show: the player that is playing, or else the one that played last.
+ * should show: the preferred player when it plays, else the player that is
+ * playing, else the one that played last. Ignored players are never picked.
  * Emits 'changed' whenever that player or its state changes, and
  * 'track-changed' when a new track starts playing or playback resumes.
  */
 export class MediaManager extends EventEmitter {
-    constructor() {
+    constructor(settings) {
         super();
+        this._settings = settings;
         this._players = new Map();
         this._lastActive = null;
         this._playingKey = null;
         this._startTime = GLib.get_monotonic_time();
+
+        this._settings.connectObject(
+            'changed::player-selection', () => this._onSelectionChanged(),
+            'changed::preferred-player', () => this._onSelectionChanged(),
+            'changed::ignored-players', () => this._onSelectionChanged(),
+            this);
 
         this._nameWatchId = Gio.DBus.session.signal_subscribe(
             'org.freedesktop.DBus', 'org.freedesktop.DBus', 'NameOwnerChanged',
@@ -348,17 +363,37 @@ export class MediaManager extends EventEmitter {
             this.emit('track-changed', player);
     }
 
+    // The settings' names, lower case, one per comma; none while the player
+    // selection is switched off.
+    _selectionNames(key) {
+        if (!this._settings.get_boolean('player-selection'))
+            return [];
+        return this._settings.get_string(key).split(',')
+            .map(name => name.trim().toLowerCase())
+            .filter(name => name !== '');
+    }
+
+    _onSelectionChanged() {
+        this.emit('changed');
+        this._checkTrack();
+    }
+
     get activePlayer() {
-        const players = [...this._players.values()].filter(p => p.hasTrack);
-        if (this._lastActive?.playing && this._lastActive.hasTrack)
-            return this._lastActive;
-        return players.find(p => p.playing) ??
-            (this._lastActive?.hasTrack ? this._lastActive : null) ??
-            players[0] ?? null;
+        const ignored = this._selectionNames('ignored-players');
+        const preferred = this._selectionNames('preferred-player');
+        const players = [...this._players.values()]
+            .filter(p => p.hasTrack && !matchesAny(p, ignored));
+        const favourite = players.find(p => matchesAny(p, preferred)) ?? null;
+        const lastActive = players.includes(this._lastActive) ? this._lastActive : null;
+        return (favourite?.playing ? favourite : null) ??
+            (lastActive?.playing ? lastActive : null) ??
+            players.find(p => p.playing) ??
+            favourite ?? lastActive ?? players[0] ?? null;
     }
 
     destroy() {
         Gio.DBus.session.signal_unsubscribe(this._nameWatchId);
+        this._settings.disconnectObject(this);
         this._players.forEach(p => p.destroy());
         this._players = null;
         this._lastActive = null;
