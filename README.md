@@ -13,15 +13,12 @@ the pointer on it.
 
 ## Demos
 
-These clips are recorded from the upcoming 1.1 build. Features marked
-*(1.1)* are finished but not on the `main` branch yet.
-
 | Peeks | Live activities |
 |---|---|
 | ![Volume, a message with Call and Later buttons, Caps Lock, earbuds connecting and Do Not Disturb, each peeking out of the notch](docs/media/peeks.gif) | ![A timer counting down, the next meeting in 7 minutes, a Files progress bar and a screen recording, each in the closed notch](docs/media/live.gif) |
-| Volume, notifications with their buttons *(1.1)*, Caps Lock, Bluetooth, Do Not Disturb. [MP4](docs/media/peeks.mp4) | Timer, meeting countdown *(1.1)*, app progress *(1.1)*, screen recording. [MP4](docs/media/live.mp4) |
+| Volume, notifications with their buttons, Caps Lock, Bluetooth, Do Not Disturb. [MP4](docs/media/peeks.mp4) | Timer, meeting countdown, app progress, screen recording. [MP4](docs/media/live.mp4) |
 | ![A file dragged from Files onto the notch, which opens on the Shelf and adds it](docs/media/shelf.gif) | ![The System tab with processor, memory, network and temperature graphs, then the player with the synced lyric line under the artist](docs/media/extras.gif) |
-| Drag files onto the notch to keep them on the Shelf *(1.1)*. [MP4](docs/media/shelf.mp4) | System tab and synced lyrics *(1.1)*, both off by default. [MP4](docs/media/extras.mp4) |
+| Drag files onto the notch to keep them on the Shelf. [MP4](docs/media/shelf.mp4) | System tab and synced lyrics, both off by default. [MP4](docs/media/extras.mp4) |
 
 The songs, people and events in the clips are made up. They are recorded
 with `tools/demo/demo.sh`, which drives a headless GNOME Shell and records it
@@ -57,7 +54,8 @@ with GNOME's own screencast.
 - **Weather:** off by default. With **Weather on the Today tab** on and a
   latitude and longitude set in Settings, the Today tab shows the temperature
   and today's high and low, from Open-Meteo. It asks when the tab opens, at
-  most every 30 minutes, and hides the line when a request fails.
+  most every 30 minutes, and hides the line when a request fails. The
+  coordinates you set are sent to open-meteo.com.
 - **Next event:** when the next timed event today starts within 15 minutes
   (a setting), the closed notch shows "in 12 min" until it starts. It counts
   down once a minute, and clicking it opens the Today tab.
@@ -115,8 +113,6 @@ with GNOME's own screencast.
   charging. Click the battery in the open notch's header for its status, time
   to full or empty, health and energy rate, and whether Power Saver is on. A
   peek says when the power profile changes to or from Power Saver.
-- **Privacy:** the weather is off by default. When it is on, the coordinates
-  you set are sent to open-meteo.com.
 - **Privacy:** small dots beside the clock when the microphone, camera or
   screen sharing is in use, and a peek naming the app. It only reads which
   apps are using them; nothing is recorded.
