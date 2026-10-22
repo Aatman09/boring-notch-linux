@@ -249,6 +249,34 @@ function musicPage(settings) {
     return page;
 }
 
+function shelfPage(settings) {
+    const page = new Adw.PreferencesPage({title: 'Shelf', icon_name: 'folder-symbolic'});
+
+    const shelf = new Adw.PreferencesGroup({
+        title: 'Shelf',
+        description: 'Files are kept as links to where they are, never copied. The list is saved in the cache folder.',
+    });
+    shelf.add(switchRow(settings, 'show-shelf', 'Shelf tab',
+        'Show the Shelf tab in the open notch'));
+    shelf.add(switchRow(settings, 'shelf-auto-add', 'Add downloads and screenshots',
+        'Add each finished download and each new screenshot to the shelf'));
+    page.add(shelf);
+
+    const share = new Adw.PreferencesGroup({
+        title: 'Share',
+        description: 'Share targets are found when you press Share: only the ones installed or running here are offered.',
+    });
+    share.add(switchRow(settings, 'shelf-share', 'Share button',
+        'Show Share on each file, with Phone (GSConnect), Bluetooth, LocalSend and Email when they are available'));
+    page.add(share);
+
+    const clipboard = new Adw.PreferencesGroup({title: 'Clipboard'});
+    clipboard.add(switchRow(settings, 'clipboard-history', 'Clipboard history',
+        'Reads the clipboard every time something is copied, and lists the recent text in the Shelf tab. It is kept in memory only, never written to disk. Text a password manager marks as secret is skipped when the manager sets the x-kde-passwordManagerHint type (KeePassXC does); other managers may not, and their secrets are kept.'));
+    page.add(clipboard);
+    return page;
+}
+
 function peeksPage(settings) {
     const page = new Adw.PreferencesPage({title: 'Peeks', icon_name: 'preferences-system-notifications-symbolic'});
 
@@ -374,6 +402,7 @@ export default class BoringNotchPreferences extends ExtensionPreferences {
         window._settings = settings;
         window.add(generalPage(settings));
         window.add(musicPage(settings));
+        window.add(shelfPage(settings));
         window.add(peeksPage(settings));
         window.add(informationPage(settings));
         window.add(aboutPage(this.metadata));

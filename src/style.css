@@ -674,6 +674,76 @@
   color: @accent-chip-text;
 }
 
+/* Shelf tab */
+
+.bn-shelf {
+  spacing: 6px;
+}
+
+.bn-shelf-bar {
+  spacing: 6px;
+}
+
+.bn-shelf-count {
+  font-size: 12px;
+  color: rgba(235, 235, 240, 0.6);
+}
+
+.bn-shelf-scroll {
+  min-height: 40px;
+}
+
+.bn-shelf-list {
+  spacing: 2px;
+}
+
+.bn-shelf-row {
+  spacing: 8px;
+  padding: 3px 6px;
+  border-radius: 8px;
+}
+
+.bn-shelf-row:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.bn-shelf-icon {
+  icon-size: 32px;
+}
+
+.bn-shelf-share {
+  spacing: 6px;
+  padding: 2px 6px 6px 48px;
+}
+
+.bn-shelf-modes {
+  spacing: 4px;
+}
+
+/* One copied text, a single line, that copies it again when clicked */
+
+.bn-shelf-clip {
+  padding: 5px 8px;
+  border-radius: 8px;
+  text-align: left;
+  color: #ebebf0;
+  transition-duration: 150ms;
+}
+
+.bn-shelf-clip:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.bn-shelf-clip-text {
+  font-size: 13px;
+}
+
+.bn-shelf-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #ebebf0;
+}
+
 /* Volume and brightness in the open notch's header */
 
 .bn-header-hud {

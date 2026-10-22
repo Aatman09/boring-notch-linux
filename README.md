@@ -62,6 +62,22 @@ the pointer on it.
   `Start`, `Update`, `End` and `Peek` (see `src/activityApi.js` for the
   arguments and limits). Switch off **Other programs** in Settings to refuse
   them.
+- **Shelf:** the Shelf tab holds up to 30 files, newest first. Paste the files
+  copied in your file manager, and finished downloads and new screenshots are
+  added by themselves (a setting). Each row opens the file, shows it in the
+  file manager, or removes it. The shelf keeps links to the files, never
+  copies, in the cache folder; a file that has been moved or deleted leaves
+  the list when the tab opens.
+- **Quick Share:** a Share button on each shelf file lists the ways this
+  computer can send it: a phone through GSConnect, Bluetooth, LocalSend and
+  email. Only the ones installed or running are listed, and the button is
+  hidden when there are none.
+- **Clipboard history (off by default):** with it on, the text you copy is
+  read each time the clipboard changes, and the last 25 texts of up to 2000
+  characters are listed in the Shelf tab's Clipboard view. Click one to copy
+  it again. It is kept in memory only, never written to disk. Text that a
+  password manager marks as secret (KeePassXC does) is skipped; other managers
+  may not mark it.
 - **Volume and brightness:** changes appear inside the notch instead of the
   GNOME popup: as a bar beside the icon in the top row, or as a row grown
   under the clock, with the percentage beside the bar. Drag the bar to set

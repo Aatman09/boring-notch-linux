@@ -25,6 +25,7 @@ const OPEN_SIZES = {
     home: {width: 640, height: 190},
     today: {width: 690, height: 460},
     timer: {width: 640, height: 190},
+    shelf: {width: 640, height: 190},
 };
 const RADII = {
     open: {top: 19, bottom: 24},
@@ -61,7 +62,7 @@ const GESTURE_GAP_US = 300 * 1000;
 export const Island = GObject.registerClass(
 class Island extends St.Widget {
     // `sources` holds the extension's monitors and models, by name: media,
-    // battery, timer, stopwatch, pomodoro, downloads, audio, privacy,
+    // battery, timer, stopwatch, pomodoro, shelf, clipboard, downloads, audio, privacy,
     // bluetooth, keyboard, recording, audioRoute, artCache and artColor.
     _init({settings, zoom, sources, openPreferences}) {
         super._init({
@@ -190,6 +191,8 @@ class Island extends St.Widget {
             timer: sources.timer,
             stopwatch: sources.stopwatch,
             pomodoro: sources.pomodoro,
+            shelf: sources.shelf,
+            clipboard: sources.clipboard,
             dndSettings: this._dndSettings,
             openPreferences: () => {
                 this.close();
@@ -228,6 +231,7 @@ class Island extends St.Widget {
             'changed::scroll-titles', () => this._syncMusicPeekScroll(),
             'changed::show-privacy-indicators', () => this._syncPrivacyDots(),
             'changed::show-dnd', () => this._syncMoon(),
+            'changed::show-shelf', () => this._syncShelfTab(),
             this);
         zoom.connectObject('changed', () => this._relayout(true), this);
         this._clockLabel.connect('notify::text', () => this._relayout());
@@ -305,6 +309,8 @@ class Island extends St.Widget {
     }
 
     open(tab = this._tab) {
+        if (tab === 'shelf' && !this._settings.get_boolean('show-shelf'))
+            tab = 'home';
         const opening = this._state !== State.OPEN;
         if (!opening && tab === this._tab)
             return;
@@ -325,6 +331,12 @@ class Island extends St.Widget {
             this._springs.forEach(s => s.configure(RESIZE_SPRING));
         }
         this._relayout();
+    }
+
+    // With the Shelf tab turned off, an open notch leaves it.
+    _syncShelfTab() {
+        if (this._state === State.OPEN && this._tab === 'shelf' && !this._settings.get_boolean('show-shelf'))
+            this.open('home');
     }
 
     close() {

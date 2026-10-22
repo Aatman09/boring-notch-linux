@@ -250,5 +250,21 @@
       <default>''</default>
       <summary>A name for the weather's place, shown before the temperature</summary>
     </key>
+    <key name="show-shelf" type="b">
+      <default>true</default>
+      <summary>Show the Shelf tab in the open notch, with the files you pasted, downloaded or captured</summary>
+    </key>
+    <key name="shelf-auto-add" type="b">
+      <default>true</default>
+      <summary>Add finished downloads and new screenshots to the shelf</summary>
+    </key>
+    <key name="clipboard-history" type="b">
+      <default>false</default>
+      <summary>Read the clipboard whenever something is copied and keep the recent text, in memory only, for the Clipboard list of the Shelf tab</summary>
+    </key>
+    <key name="shelf-share" type="b">
+      <default>true</default>
+      <summary>Show a Share button on shelf files, for the sharing targets found on this computer: GSConnect, Bluetooth, LocalSend and email</summary>
+    </key>
   </schema>
 </schemalist>

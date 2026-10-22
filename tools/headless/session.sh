@@ -5,7 +5,15 @@
 . "$(dirname "$(readlink -f "$0")")/common.sh"
 FRACTIONAL=; [ "$1" = --fractional ] && { FRACTIONAL=1; shift; }
 MONITOR=${1:-1920x1080}
+# BN_KEEP="cache files": folders of the test home kept across this start,
+# for tests that restart the shell and check what survived.
+KEEP=
+for d in ${BN_KEEP:-}; do [ -e "$T/$d" ] && mv "$T/$d" "$T.keep-$d" && KEEP="$KEEP $d"; done
 rm -rf "$T"; mkdir -p "$T"/{home,config,cache,data/gnome-shell/extensions}
+for d in $KEEP; do rm -rf "$T/$d" && mv "$T.keep-$d" "$T/$d"; done
+# The folders the watchers need to exist when the shell starts, as on a desktop.
+mkdir -p "$T"/home/{Downloads,Pictures}
+printf 'XDG_DOWNLOAD_DIR="$HOME/Downloads"\nXDG_PICTURES_DIR="$HOME/Pictures"\n' > "$T/config/user-dirs.dirs"
 ln -s "$REPO" "$T/data/gnome-shell/extensions/$UUID"
 ln -s "$HERE/devtools@local" "$T/data/gnome-shell/extensions/devtools@local"
 RT=$(mktemp -d /tmp/bnrt.XXXX); chmod 700 "$RT"

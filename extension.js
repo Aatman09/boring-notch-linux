@@ -12,6 +12,7 @@ import {AudioLevels, IGNORED_RECORDING_APPS} from './src/audio.js';
 import {AudioRouteMonitor} from './src/audioRoute.js';
 import {BatteryMonitor} from './src/battery.js';
 import {BluetoothMonitor} from './src/bluetooth.js';
+import {ClipboardHistory} from './src/clipboard.js';
 import {DownloadWatcher} from './src/downloads.js';
 import {Island} from './src/island.js';
 import {KeyboardMonitor} from './src/keyboard.js';
@@ -19,6 +20,7 @@ import {LauncherEntryWatcher} from './src/launcherEntry.js';
 import {MediaManager} from './src/media.js';
 import {PrivacyMonitor} from './src/privacy.js';
 import {RecordingMonitor} from './src/recording.js';
+import {Shelf} from './src/shelf.js';
 import {ScaledStylesheet} from './src/style.js';
 import {exclusive, Pomodoro, Stopwatch, Timer} from './src/timer.js';
 import {WeatherSource} from './src/weather.js';
@@ -90,13 +92,16 @@ export default class BoringNotchExtension extends Extension {
         // The notch shows one timer figure: starting a mode resets the others.
         exclusive(timer, stopwatch, pomodoro);
         // Everything the notch watches or drives; each has destroy().
+        const downloads = new DownloadWatcher();
         this._sources = {
             media: new MediaManager(this._settings),
             battery: new BatteryMonitor(),
             timer,
             stopwatch,
             pomodoro,
-            downloads: new DownloadWatcher(),
+            downloads,
+            shelf: new Shelf({settings: this._settings, downloads}),
+            clipboard: new ClipboardHistory({settings: this._settings}),
             artCache: new ArtCache(),
             artColor: new ArtColorLoader(),
             audio: new AudioLevels(),
