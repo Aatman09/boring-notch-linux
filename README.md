@@ -7,15 +7,25 @@ GNOME Shell extension because the original is built on macOS-only frameworks.
 The notch sits in the middle of the top bar and springs open when you rest
 the pointer on it.
 
-![Boring Notch opening on the player, then the Today and Timer tabs, a volume change and a notification](docs/demo.gif)
+![The tour: music in the closed notch, opening it on the player, the Today tab with events and weather, the Timer tab, and a new track peeking out](docs/media/overview.gif)
 
-[Watch the demo in full quality (MP4, 60 fps)](docs/demo.mp4)
+[Watch in full quality (MP4, 60 fps)](docs/media/overview.mp4)
 
-| Closed, music playing | Home |
+## Demos
+
+These clips are recorded from the upcoming 1.1 build. Features marked
+*(1.1)* are finished but not on the `main` branch yet.
+
+| Peeks | Live activities |
 |---|---|
-| ![Closed notch with album art, clock and visualizer](docs/closed.png) | ![Open notch with the media player](docs/home.png) |
+| ![Volume, a message with Call and Later buttons, Caps Lock, earbuds connecting and Do Not Disturb, each peeking out of the notch](docs/media/peeks.gif) | ![A timer counting down, the next meeting in 7 minutes, a Files progress bar and a screen recording, each in the closed notch](docs/media/live.gif) |
+| Volume, notifications with their buttons *(1.1)*, Caps Lock, Bluetooth, Do Not Disturb. [MP4](docs/media/peeks.mp4) | Timer, meeting countdown *(1.1)*, app progress *(1.1)*, screen recording. [MP4](docs/media/live.mp4) |
+| ![A file dragged from Files onto the notch, which opens on the Shelf and adds it](docs/media/shelf.gif) | ![The System tab with processor, memory, network and temperature graphs, then the player with the synced lyric line under the artist](docs/media/extras.gif) |
+| Drag files onto the notch to keep them on the Shelf *(1.1)*. [MP4](docs/media/shelf.mp4) | System tab and synced lyrics *(1.1)*, both off by default. [MP4](docs/media/extras.mp4) |
 
-![Today tab with notifications on the left and the month calendar on the right](docs/today.png)
+The songs, people and events in the clips are made up. They are recorded
+with `tools/demo/demo.sh`, which drives a headless GNOME Shell and records it
+with GNOME's own screencast.
 
 ## Features
 
