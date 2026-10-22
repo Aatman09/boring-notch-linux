@@ -10,6 +10,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
 import {InlineHudView, LiveMediaView, MusicPeekView, RowHudView} from './closedViews.js';
+import {TABS} from './header.js';
 import {LiveActivities} from './liveActivities.js';
 import {NotchShape} from './notchShape.js';
 import {OpenView} from './openView.js';
@@ -26,6 +27,7 @@ const OPEN_SIZES = {
     today: {width: 690, height: 460},
     timer: {width: 640, height: 190},
     shelf: {width: 640, height: 190},
+    system: {width: 640, height: 190},
 };
 const RADII = {
     open: {top: 19, bottom: 24},
@@ -62,8 +64,9 @@ const GESTURE_GAP_US = 300 * 1000;
 export const Island = GObject.registerClass(
 class Island extends St.Widget {
     // `sources` holds the extension's monitors and models, by name: media,
-    // battery, timer, stopwatch, pomodoro, shelf, clipboard, downloads, audio, privacy,
-    // bluetooth, keyboard, recording, audioRoute, artCache and artColor.
+    // battery, timer, stopwatch, pomodoro, downloads, shelf, clipboard, audio,
+    // privacy, bluetooth, keyboard, recording, audioRoute, activities,
+    // launcher, weather, system, lyrics, artCache and artColor.
     _init({settings, zoom, sources, openPreferences}) {
         super._init({
             name: 'boring-notch',
@@ -82,6 +85,7 @@ class Island extends St.Widget {
         this._audioRoute = sources.audioRoute;
         this._artCache = sources.artCache;
         this._artColor = sources.artColor;
+        this._lyrics = sources.lyrics;
         this._state = State.CLOSED;
         this._tab = 'home';
         this._peekQueue = new PeekQueue({
@@ -193,6 +197,8 @@ class Island extends St.Widget {
             pomodoro: sources.pomodoro,
             shelf: sources.shelf,
             clipboard: sources.clipboard,
+            system: sources.system,
+            lyrics: sources.lyrics,
             dndSettings: this._dndSettings,
             openPreferences: () => {
                 this.close();
@@ -231,7 +237,10 @@ class Island extends St.Widget {
             'changed::scroll-titles', () => this._syncMusicPeekScroll(),
             'changed::show-privacy-indicators', () => this._syncPrivacyDots(),
             'changed::show-dnd', () => this._syncMoon(),
-            'changed::show-shelf', () => this._syncShelfTab(),
+            'changed::show-shelf', () => this._leaveHiddenTab(),
+            'changed::show-system-tab', () => this._leaveHiddenTab(),
+            'changed::show-lyrics', () => this._syncMedia(),
+            'changed::notch-monitor', () => this._relayout(true),
             this);
         zoom.connectObject('changed', () => this._relayout(true), this);
         this._clockLabel.connect('notify::text', () => this._relayout());
@@ -266,8 +275,14 @@ class Island extends St.Widget {
         this._relayout(true);
     }
 
+    // The monitor the notch is on: the one named by notch-monitor, or the
+    // primary one when that is 'primary' or not connected.
     get monitorIndex() {
-        return Main.layoutManager.primaryIndex;
+        const connector = this._settings.get_string('notch-monitor');
+        const index = connector === 'primary'
+            ? -1
+            : global.backend.get_monitor_manager().get_monitor_for_connector(connector);
+        return index >= 0 ? index : Main.layoutManager.primaryIndex;
     }
 
     get isOpen() {
@@ -309,7 +324,7 @@ class Island extends St.Widget {
     }
 
     open(tab = this._tab) {
-        if (tab === 'shelf' && !this._settings.get_boolean('show-shelf'))
+        if (!this._tabShown(tab))
             tab = 'home';
         const opening = this._state !== State.OPEN;
         if (!opening && tab === this._tab)
@@ -333,9 +348,16 @@ class Island extends St.Widget {
         this._relayout();
     }
 
-    // With the Shelf tab turned off, an open notch leaves it.
-    _syncShelfTab() {
-        if (this._state === State.OPEN && this._tab === 'shelf' && !this._settings.get_boolean('show-shelf'))
+    // Whether a tab is shown: tabs with a setting (Shelf, System) can be
+    // switched off.
+    _tabShown(tab) {
+        const setting = TABS.find(t => t.id === tab)?.setting;
+        return !setting || this._settings.get_boolean(setting);
+    }
+
+    // With the tab it is on switched off, an open notch goes back to Home.
+    _leaveHiddenTab() {
+        if (this._state === State.OPEN && !this._tabShown(this._tab))
             this.open('home');
     }
 
@@ -514,6 +536,7 @@ class Island extends St.Widget {
             });
         }
 
+        this._lyrics.follow(this._settings.get_boolean('show-lyrics') ? player : null);
         this._syncArt(player);
         this._liveMedia.update(this._artUri);
         this._syncVisualizer();
@@ -727,10 +750,10 @@ class Island extends St.Widget {
         });
     }
 
-    // Device pixels per logical pixel: 1.25 at 125% fractional scaling.
+    // Device pixels per logical pixel on the notch's monitor: 1.25 at 125%
+    // fractional scaling. Other monitors may have their own scale.
     get _deviceScale() {
-        const views = global.stage.peek_stage_views();
-        return Math.max(1, ...views.map(v => v.get_scale()));
+        return Math.max(1, global.display.get_monitor_scale(this.monitorIndex));
     }
 
     // Rounds to whole device pixels. At fractional scales a logical pixel
@@ -742,7 +765,7 @@ class Island extends St.Widget {
     }
 
     _applyGeometry() {
-        const monitor = Main.layoutManager.primaryMonitor;
+        const monitor = Main.layoutManager.monitors[this.monitorIndex];
         if (!monitor)
             return;
 

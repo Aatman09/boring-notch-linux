@@ -10,11 +10,13 @@ import {iconButton} from './widgets.js';
 
 const HEADER_HUD_MS = 1500;
 
-const TABS = [
+// A tab with `setting` shows only while that setting is on.
+export const TABS = [
     {id: 'home', label: 'Home', icon: 'user-home-symbolic'},
     {id: 'today', label: 'Today', icon: 'x-office-calendar-symbolic'},
     {id: 'timer', label: 'Timer', icon: 'alarm-symbolic'},
     {id: 'shelf', label: 'Shelf', icon: 'folder-symbolic', setting: 'show-shelf'},
+    {id: 'system', label: 'System', icon: 'utilities-system-monitor-symbolic', setting: 'show-system-tab'},
 ];
 
 /** BoringHeader: tabs on the left, settings and battery on the right. */
@@ -34,9 +36,9 @@ export const Header = GObject.registerClass({
             box.add_child(new St.Icon({icon_name: icon, style_class: 'bn-tab-icon'}));
             box.add_child(new St.Label({text: label, y_align: Clutter.ActorAlign.CENTER}));
             const tab = new St.Button({style_class: 'bn-tab', child: box, can_focus: true});
-            tab.connect('clicked', () => this.emit('tab-selected', id));
             if (setting)
                 settings.bind(setting, tab, 'visible', Gio.SettingsBindFlags.GET);
+            tab.connect('clicked', () => this.emit('tab-selected', id));
             this._tabs.set(id, tab);
             this.add_child(tab);
         }

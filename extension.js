@@ -17,11 +17,13 @@ import {DownloadWatcher} from './src/downloads.js';
 import {Island} from './src/island.js';
 import {KeyboardMonitor} from './src/keyboard.js';
 import {LauncherEntryWatcher} from './src/launcherEntry.js';
+import {LyricsService} from './src/lyrics.js';
 import {MediaManager} from './src/media.js';
 import {PrivacyMonitor} from './src/privacy.js';
 import {RecordingMonitor} from './src/recording.js';
 import {Shelf} from './src/shelf.js';
 import {ScaledStylesheet} from './src/style.js';
+import {SystemMonitor} from './src/sysmon.js';
 import {exclusive, Pomodoro, Stopwatch, Timer} from './src/timer.js';
 import {WeatherSource} from './src/weather.js';
 import {Zoom} from './src/zoom.js';
@@ -113,6 +115,8 @@ export default class BoringNotchExtension extends Extension {
             activities: new ActivityApi(this._settings),
             launcher: new LauncherEntryWatcher(this._settings),
             weather: new WeatherSource(this._settings),
+            system: new SystemMonitor(),
+            lyrics: new LyricsService(),
         };
 
         this._island = new Island({

@@ -131,6 +131,11 @@ class MprisPlayer extends EventEmitter {
         return typeof artists === 'string' ? artists : '';
     }
 
+    get album() {
+        const album = this._metadata['xesam:album'];
+        return typeof album === 'string' ? album : '';
+    }
+
     get artUrl() {
         const url = this._metadata['mpris:artUrl'];
         return typeof url === 'string' ? url : '';

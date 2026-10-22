@@ -634,6 +634,48 @@
   font-weight: 500;
 }
 
+/* The lyric line under the artist on Home. */
+
+.bn-lyric {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(235, 235, 240, 0.6);
+  margin-top: 2px;
+}
+
+/* System tab */
+
+.bn-system {
+  spacing: 18px;
+  padding: 4px 4px 0;
+}
+
+.bn-system-column {
+  spacing: 4px;
+}
+
+.bn-system-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(235, 235, 240, 0.6);
+}
+
+.bn-system-value {
+  font-size: 15px;
+  font-weight: 500;
+  font-feature-settings: "tnum";
+}
+
+.bn-sysmon-spark {
+  min-height: 40px;
+  margin-top: 2px;
+}
+
+.bn-sysmon-bar {
+  background-color: rgba(255, 255, 255, 0.55);
+  border-radius: 1px;
+}
+
 /* Timer tab */
 
 .bn-timer {

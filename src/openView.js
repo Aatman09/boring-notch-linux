@@ -7,6 +7,7 @@ import {BatteryPanel} from './batteryPanel.js';
 import {Header} from './header.js';
 import {IdleView, MediaPlayer} from './player.js';
 import {ShelfView} from './shelfView.js';
+import {SystemView} from './systemView.js';
 import {TimerView} from './timerView.js';
 import {TodayView} from './todayView.js';
 
@@ -24,16 +25,17 @@ const PARKED_Y = -10000;
 export const OpenView = GObject.registerClass({
     Signals: {'tab-selected': {param_types: [GObject.TYPE_STRING]}},
 }, class OpenView extends St.Widget {
-    _init({settings, weather, battery, timer, stopwatch, pomodoro, shelf, clipboard, dndSettings, openPreferences}) {
+    _init({settings, weather, battery, timer, stopwatch, pomodoro, shelf, clipboard, system, lyrics, dndSettings, openPreferences}) {
         super._init({style_class: 'bn-open', opacity: 0});
         this._settings = settings;
+        this._sysmon = system;
 
         this._header = new Header(battery, dndSettings, openPreferences, settings);
         this._header.connect('tab-selected', (_h, id) => this.emit('tab-selected', id));
         this._header.connect('battery-clicked', () => this._toggleBatteryPanel());
         this.add_child(this._header);
 
-        this._player = new MediaPlayer(settings);
+        this._player = new MediaPlayer(settings, lyrics);
         this._idle = new IdleView();
         const home = new St.Widget({layout_manager: new Clutter.BinLayout()});
         home.add_child(this._player);
@@ -45,6 +47,7 @@ export const OpenView = GObject.registerClass({
             today: this._today,
             timer: new TimerView({settings, timer, stopwatch, pomodoro}),
             shelf: new ShelfView({settings, shelf, clipboard}),
+            system: new SystemView({system}),
         };
         Object.values(this._pages).forEach(page => this.add_child(page));
         this._tab = 'home';
@@ -72,6 +75,9 @@ export const OpenView = GObject.registerClass({
         }
         if (id === 'shelf')
             this._pages.shelf.reset();
+        if (id === 'system')
+            this._pages.system.reset();
+        this._syncSystem();
     }
 
     setUnread(unread) {
@@ -167,6 +173,7 @@ export const OpenView = GObject.registerClass({
             return GLib.SOURCE_CONTINUE;
         });
         this._player.setScrolling(this._tab === 'home');
+        this._syncSystem();
     }
 
     stopTicking() {
@@ -174,6 +181,12 @@ export const OpenView = GObject.registerClass({
             GLib.source_remove(this._tickId);
         this._tickId = 0;
         this._player.setScrolling(false);
+        this._syncSystem();
+    }
+
+    // The System tab samples only while it is on screen in the open notch.
+    _syncSystem() {
+        this._sysmon.setActive(!!this._tickId && this._tab === 'system');
     }
 
     _tick() {

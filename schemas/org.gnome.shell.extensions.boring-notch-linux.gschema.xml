@@ -266,5 +266,17 @@
       <default>true</default>
       <summary>Show a Share button on shelf files, for the sharing targets found on this computer: GSConnect, Bluetooth, LocalSend and email</summary>
     </key>
+    <key name="show-lyrics" type="b">
+      <default>false</default>
+      <summary>Show the synced lyrics line under the artist on the Home tab, looked up on lrclib.net with each track's title, artist, album and length</summary>
+    </key>
+    <key name="notch-monitor" type="s">
+      <default>'primary'</default>
+      <summary>Connector name of the display that shows the notch, such as HDMI-1, or primary for the primary display</summary>
+    </key>
+    <key name="show-system-tab" type="b">
+      <default>false</default>
+      <summary>Show a System tab in the open notch with processor, memory, network and temperature readings, sampled only while the tab is on screen</summary>
+    </key>
   </schema>
 </schemalist>

@@ -51,6 +51,18 @@ the pointer on it.
 - **Next event:** when the next timed event today starts within 15 minutes
   (a setting), the closed notch shows "in 12 min" until it starts. It counts
   down once a minute, and clicking it opens the Today tab.
+- **Synced lyrics (off by default):** the line being sung shows under the
+  artist on the Home tab, from lrclib.net. Lyrics are looked up once per
+  track and kept in the cache folder; tracks without synced lyrics show none.
+- **System tab (off by default):** a System tab in the open notch shows the
+  processor's use, memory, network speeds and, when the machine has one, the
+  processor's temperature, each with its last half minute as small bars. It
+  reads `/proc` and `/sys` once a second, and only while that tab is on
+  screen; nothing is read when the notch is closed.
+- **Display:** in Settings, pick the display that shows the notch: the
+  primary display (the default) or one of the connected displays by its
+  connector name, such as HDMI-1. When that display is unplugged, the notch
+  goes to the primary display. The notch shows on one display at a time.
 - **Downloads:** browser downloads show while they run, and a peek with the
   file name when they finish. Click it to open the Downloads folder.
 - **App progress:** apps that report progress to GNOME through the Unity
@@ -129,6 +141,10 @@ The notch size, corner radii and spring physics are copied from boring.notch:
 0.45 s and 1.0 when closing.
 
 ## Privacy
+
+With **Synced lyrics** on (off by default), each track's title, artist,
+album and length are sent to lrclib.net to find its lyrics. Nothing is sent
+with the setting off.
 
 To make the bars follow the music, the extension runs `gst-launch-1.0` to
 measure the loudness of what your speakers are playing. It reads the speaker
