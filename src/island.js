@@ -4,19 +4,21 @@ import GLib from 'gi://GLib';
 import GnomeDesktop from 'gi://GnomeDesktop';
 import GObject from 'gi://GObject';
 import Pango from 'gi://Pango';
+import Shell from 'gi://Shell';
 import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
-import {getMixerControl} from 'resource:///org/gnome/shell/ui/status/volume.js';
 
-import {BatterySneakView, IconTextView, InlineHudView, LiveMediaView, MusicPeekView, RowHudView, ScreenshotPeekView} from './closedViews.js';
+import {InlineHudView, LiveMediaView, MusicPeekView, RowHudView} from './closedViews.js';
+import {TABS} from './header.js';
+import {LiveActivities} from './liveActivities.js';
 import {NotchShape} from './notchShape.js';
 import {OpenView} from './openView.js';
+import {PeekQueue, Priority} from './peekQueue.js';
 import {Spring, SpringAnimator} from './spring.js';
-import {formatTime} from './widgets.js';
-
-const formatSeconds = s => formatTime(s * GLib.USEC_PER_SEC);
+import {SystemPeeks} from './systemPeeks.js';
+import {VOLUME_STEP, getVolume, setBrightness, setVolume, volumeIcon} from './volume.js';
 
 // Sizes and springs from boring.notch (sizing/matters.swift and
 // ContentView.swift), in logical pixels and seconds, before the size
@@ -25,6 +27,8 @@ const OPEN_SIZES = {
     home: {width: 640, height: 190},
     today: {width: 690, height: 460},
     timer: {width: 640, height: 190},
+    shelf: {width: 640, height: 190},
+    system: {width: 640, height: 190},
 };
 const RADII = {
     open: {top: 19, bottom: 24},
@@ -40,23 +44,7 @@ const FALLBACK_PANEL_HEIGHT = 32;
 
 const CLOSE_DELAY_MS = 100;
 const HUD_TIMEOUT_MS = 1500;
-const BATTERY_TIMEOUT_MS = 2500;
-const BATTERY_LEVEL_TIMEOUT_MS = 4000;
-// gnome-settings-daemon posts its own battery notification when a warning
-// level is reached; one is not worth two for this long after ours.
-const BATTERY_NOTICE_WINDOW_MS = 2000;
-const BLUETOOTH_TIMEOUT_MS = 2500;
-const NOTIFICATION_TIMEOUT_MS = 4000;
-const DOWNLOAD_TIMEOUT_MS = 4000;
-const TIMER_DONE_TIMEOUT_MS = 6000;
 const MUSIC_PEEK_TIMEOUT_MS = 3000;
-const PRIVACY_TIMEOUT_MS = 3000;
-const SCREENSHOT_TIMEOUT_MS = 4000;
-const DND_TIMEOUT_MS = 2500;
-const KEYBOARD_TIMEOUT_MS = 1200;
-// The GNOME screen recorder is read through Main.screenshotUI (B1).
-const RECORD_LIVE_SIDE = 52;
-const AUDIO_ROUTE_TIMEOUT_MS = 2500;
 // A notch opened from the keyboard closes by itself unless the pointer
 // comes to it.
 const KEYBOARD_OPEN_MS = 4000;
@@ -69,21 +57,18 @@ const PARKED_Y = -10000;
 
 const State = {CLOSED: 'closed', OPEN: 'open'};
 
-// Which peek wins when several arrive together. A higher one shows at once;
-// a lower one waits for its turn.
-const Priority = {MUSIC: 0, STATUS: 1, NOTIFICATION: 2, HUD: 3};
-// Peeks still waiting after this long are dropped rather than shown late.
-const STALE_US = 10 * GLib.USEC_PER_SEC;
-
 // Gestures on the notch. Touchpad deltas are summed until they pass the
 // threshold; a pause longer than the gap starts a new gesture.
 const SWIPE_THRESHOLD = 1.5;
 const GESTURE_GAP_US = 300 * 1000;
-const VOLUME_STEP = 0.05;
 
 export const Island = GObject.registerClass(
 class Island extends St.Widget {
-    _init({settings, zoom, media, battery, timer, downloads, audio, privacy, bluetooth, keyboard, recording, audioRoute, artCache, artColor, openPreferences}) {
+    // `sources` holds the extension's monitors and models, by name: media,
+    // battery, timer, stopwatch, pomodoro, downloads, shelf, clipboard, audio,
+    // privacy, bluetooth, keyboard, recording, audioRoute, activities,
+    // launcher, weather, system, lyrics, artCache and artColor.
+    _init({settings, zoom, sources, openPreferences}) {
         super._init({
             name: 'boring-notch',
             reactive: true,
@@ -91,27 +76,36 @@ class Island extends St.Widget {
             clip_to_allocation: true,
         });
 
+        const {media, audio, privacy} = sources;
         this._settings = settings;
         this._zoomSource = zoom;
+        this._sources = sources;
         this._media = media;
-        this._battery = battery;
-        this._timer = timer;
-        this._downloads = downloads;
-        this._privacy = privacy;
-        this._bluetooth = bluetooth;
-        this._keyboard = keyboard;
-        this._recording = recording;
-        this._audioRoute = audioRoute;
-        this._artCache = artCache;
-        this._artColor = artColor;
+        this._battery = sources.battery;
+        this._keyboard = sources.keyboard;
+        this._audioRoute = sources.audioRoute;
+        this._artCache = sources.artCache;
+        this._artColor = sources.artColor;
+        this._lyrics = sources.lyrics;
         this._state = State.CLOSED;
         this._tab = 'home';
-        this._peeks = [];
-        this._sneak = null;
-        this._sneakAction = null;
-        // gnome-settings-daemon's battery notice is dropped for this long
-        // after one of our battery-level peeks; zero means never drop.
-        this._batteryNoticeUntil = 0;
+        this._peekQueue = new PeekQueue({
+            onShow: () => {
+                this._syncMusicPeekScroll();
+                this._relayout();
+            },
+            onIdle: () => {
+                this._syncMusicPeekScroll();
+                this._live.syncTimer();
+                this._relayout();
+            },
+            canContinue: () => this._state === State.CLOSED,
+        });
+        // True while hover must wait for the pointer to leave after a press
+        // on a control inside a peek.
+        this._hoverHeld = false;
+        // True while files are dragged onto the open notch.
+        this._dragging = false;
         this._gesture = {dx: 0, dy: 0, time: 0, done: false};
         this._soundSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.sound'});
         this._touchpadSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.peripherals.touchpad'});
@@ -123,8 +117,6 @@ class Island extends St.Widget {
         this._artColorRgb = null;
         this._artColorTrack = null;
         this._timeouts = new Map();
-        this._recordTickId = 0;
-        this._recordStartUs = 0;
 
         // Children are placed by hand: the content keeps a fixed size and
         // is moved with a translation while the notch grows around it, so
@@ -166,7 +158,6 @@ class Island extends St.Widget {
         this._privacyState = privacy.state;
         // Do Not Disturb is the show-banners key with banners stopped.
         this._dndSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.notifications'});
-        this._dnd = !this._dndSettings.get_boolean('show-banners');
         this._dndMoon = new St.Icon({
             icon_name: 'weather-clear-night-symbolic',
             style_class: 'bn-dnd-moon',
@@ -191,33 +182,9 @@ class Island extends St.Widget {
         this._hudRow = new RowHudView(settings);
         for (const hud of [this._hud, this._hudRow])
             hud.onAdjust = (kind, level, maxLevel) => this._adjustHud(kind, level, maxLevel);
-        // The screen recording is the most urgent live activity: it hogs the
-        // notch over the timer, the downloads and the music.
-        this._recordLive = new IconTextView('bn-record-live', RECORD_LIVE_SIDE);
-        this._batterySneak = new BatterySneakView();
-        this._timerLive = new IconTextView('bn-timer-live', 52);
-        this._downloadLive = new IconTextView('bn-download-live', 52);
-        this._messageSneak = new IconTextView('bn-message-sneak', 150, {peek: true});
-        this._privacyPeek = new IconTextView('bn-privacy-peek', 145, {peek: true});
-        this._screenshotPeek = new ScreenshotPeekView();
-        this._bluetoothPeek = new IconTextView('bn-bluetooth-peek', 130, {peek: true});
-        this._dndPeek = new IconTextView('bn-dnd-peek', 110, {peek: true});
-        this._keyboardPeek = new IconTextView('bn-keyboard-peek', 105, {peek: true});
-        this._audioRoutePeek = new IconTextView('bn-audio-route', 110, {peek: true});
-        // One centred group: drop the empty halves the base layout keeps.
-        {
-            const [left, gap, right] = this._audioRoutePeek.get_children();
-            this._audioRoutePeek.remove_child(gap);
-            this._audioRoutePeek.remove_child(right);
-            left.x_align = Clutter.ActorAlign.CENTER;
-        }
         this._musicPeek = new MusicPeekView();
-        [this._recordLive, this._liveMedia, this._hud, this._hudRow,
-            this._batterySneak,
-            this._timerLive, this._downloadLive, this._messageSneak,
-            this._privacyPeek, this._screenshotPeek, this._bluetoothPeek,
-            this._dndPeek, this._keyboardPeek, this._audioRoutePeek,
-            this._musicPeek]
+        this._systemPeeks = new SystemPeeks({settings, sources, dndSettings: this._dndSettings, host: this});
+        [this._liveMedia, this._hud, this._hudRow, this._musicPeek, ...this._systemPeeks.views]
             .forEach(v => this._closedLayer.add_child(v));
         // The layer fading out when the notch opens takes the shown view
         // with it; let that view go of what it holds once it is hidden.
@@ -226,8 +193,15 @@ class Island extends St.Widget {
 
         this._openView = new OpenView({
             settings,
-            battery,
-            timer,
+            weather: sources.weather,
+            battery: this._battery,
+            timer: sources.timer,
+            stopwatch: sources.stopwatch,
+            pomodoro: sources.pomodoro,
+            shelf: sources.shelf,
+            clipboard: sources.clipboard,
+            system: sources.system,
+            lyrics: sources.lyrics,
             dndSettings: this._dndSettings,
             openPreferences: () => {
                 this.close();
@@ -237,6 +211,11 @@ class Island extends St.Widget {
         this._openView.connect('tab-selected', (_v, tab) => this.open(tab));
         this._openView.translation_y = PARKED_Y;
         this.add_child(this._openView);
+
+        // Made before the springs, so their first syncs do not lay out a
+        // half-built notch.
+        this._live = new LiveActivities({settings, sources, eventSource: this._openView.eventSource, host: this});
+        this._live.views.forEach(v => this._closedLayer.add_child(v));
 
         const r = RADII.closed;
         this._width = new Spring(settings.get_int('closed-width'));
@@ -259,10 +238,12 @@ class Island extends St.Widget {
             'changed::visualizer-follows-audio', () => this._syncVisualizer(),
             'changed::art-colors', () => this._syncArtColors(),
             'changed::scroll-titles', () => this._syncMusicPeekScroll(),
-            'changed::show-downloads', () => this._relayout(),
             'changed::show-privacy-indicators', () => this._syncPrivacyDots(),
             'changed::show-dnd', () => this._syncMoon(),
-            'changed::show-recording', () => this._onShowRecordingChanged(),
+            'changed::show-shelf', () => this._leaveHiddenTab(),
+            'changed::show-system-tab', () => this._leaveHiddenTab(),
+            'changed::show-lyrics', () => this._syncMedia(),
+            'changed::notch-monitor', () => this._relayout(true),
             this);
         zoom.connectObject('changed', () => this._relayout(true), this);
         this._clockLabel.connect('notify::text', () => this._relayout());
@@ -272,36 +253,10 @@ class Island extends St.Widget {
             'changed', () => this._syncMedia(),
             'track-changed', (_m, player) => this._onTrackChanged(player),
             this);
-        battery.connectObject(
-            'plugged', () => this._onPlugged(),
-            'warning', (_m, level) => this._onBatteryWarning(level),
-            'full', () => this._onBatteryFull(),
-            this);
-        privacy.connectObject(
-            'changed', (_p, state) => this._onPrivacyChanged(state),
-            'started', (_p, kind, appName) => this._onPrivacyStarted(kind, appName),
-            this);
-        bluetooth.connectObject(
-            'connected', (_b, device) => this._onBluetooth(device, true),
-            'disconnected', (_b, device) => this._onBluetooth(device, false),
-            this);
-        keyboard.connectObject(
-            'caps-lock', (_k, on) => this._onCapsLock(on),
-            'layout', (_k, source) => this._onLayoutChanged(source),
-            this);
-        recording.connectObject('changed', () => this._onRecordingChanged(), this);
-        audioRoute.connectObject('changed',
-            (_r, route) => this._onAudioRouteChanged(route), this);
-        timer.connectObject(
-            'changed', () => this._syncTimer(),
-            'finished', () => this._onTimerFinished(),
-            this);
-        downloads.connectObject(
-            'changed', () => this._syncDownloads(),
-            'finished', (_d, file) => this._onDownloadFinished(file),
-            this);
+        privacy.connectObject('changed',
+            (_p, state) => this._onPrivacyChanged(state), this);
         this._dndSettings.connectObject('changed::show-banners',
-            () => this._onBannersChanged(), this);
+            () => this._syncMoon(), this);
         Main.layoutManager.connectObject('monitors-changed', () => this._relayout(true), this);
         Main.panel.connectObject('notify::height', () => this._relayout(true), this);
         const themeContext = St.ThemeContext.get_for_stage(global.stage);
@@ -320,21 +275,72 @@ class Island extends St.Widget {
         this._syncPrivacyDots();
         this._syncMoon();
         this._syncMedia();
-        this._syncTimer();
-        this._syncDownloads();
-        if (this._recording.recording) {
-            // A recording that is already running when the extension
-            // enables has been going since before we could see it; counting
-            // from now is the best honest guess.
-            this._recordStartUs = GLib.get_monotonic_time();
-            this._syncRecordTick();
-        }
-        this._syncRecordLive();
         this._relayout(true);
     }
 
+    // The monitor the notch is on: the one named by notch-monitor, or the
+    // primary one when that is 'primary' or not connected.
     get monitorIndex() {
-        return Main.layoutManager.primaryIndex;
+        const connector = this._settings.get_string('notch-monitor');
+        const index = connector === 'primary'
+            ? -1
+            : global.backend.get_monitor_manager().get_monitor_for_connector(connector);
+        return index >= 0 ? index : Main.layoutManager.primaryIndex;
+    }
+
+    get isOpen() {
+        return this._state === State.OPEN;
+    }
+
+    // Where the notch is now (tab null), or where it would be open on
+    // `tab`, in stage pixels.
+    rectFor(tab) {
+        const monitor = Main.layoutManager.monitors[this.monitorIndex];
+        const width = tab ? OPEN_SIZES[tab].width * this._zoom * this._scale : this.width;
+        const height = tab ? OPEN_SIZES[tab].height * this._zoom * this._scale : this.height;
+        return {
+            x: Math.round(monitor.x + monitor.width / 2 - width / 2),
+            y: monitor.y,
+            width: Math.round(width),
+            height: Math.round(height),
+        };
+    }
+
+    // While files are dragged onto the notch, it stays open whatever the
+    // hover says, and lets the pointer through to the drop target under it
+    // (see shelfDrop.js).
+    setDragging(dragging) {
+        this._dragging = dragging;
+        // The notch and everything in it is left out of picking: its buttons
+        // and lists would otherwise keep the pointer from the window under it.
+        Shell.util_set_hidden_from_pick(this, dragging);
+        if (!dragging)
+            this._onHoverChanged();
+    }
+
+    // Whether a drag is over the shelf's drop target, for the Shelf tab to
+    // say what a drop will do.
+    setShelfDropHover(hover) {
+        this._openView.setShelfDropHover(hover);
+    }
+
+    // Queues a peek; see PeekQueue.
+    showPeek(peek) {
+        this._peekQueue.show(peek);
+    }
+
+    endPeekShowing(view) {
+        this._peekQueue.endIfShowing(view);
+    }
+
+    // The view of the peek showing, or null.
+    get peekView() {
+        return this._peekQueue.current?.view ?? null;
+    }
+
+    // Lays the notch out again after what it shows has changed.
+    relayout() {
+        this._relayout();
     }
 
     get _scale() {
@@ -353,6 +359,8 @@ class Island extends St.Widget {
     }
 
     open(tab = this._tab) {
+        if (!this._tabShown(tab))
+            tab = 'home';
         const opening = this._state !== State.OPEN;
         if (!opening && tab === this._tab)
             return;
@@ -363,7 +371,7 @@ class Island extends St.Widget {
         if (opening) {
             this._state = State.OPEN;
             this._clearPeeks();
-            this._syncRecordTick();
+            this._live.setOpen(true);
             this._fade(this._closedLayer, false);
             this._showOpenView(true);
             this._openView.startTicking();
@@ -373,6 +381,19 @@ class Island extends St.Widget {
             this._springs.forEach(s => s.configure(RESIZE_SPRING));
         }
         this._relayout();
+    }
+
+    // Whether a tab is shown: tabs with a setting (Shelf, System) can be
+    // switched off.
+    _tabShown(tab) {
+        const setting = TABS.find(t => t.id === tab)?.setting;
+        return !setting || this._settings.get_boolean(setting);
+    }
+
+    // With the tab it is on switched off, an open notch goes back to Home.
+    _leaveHiddenTab() {
+        if (this._state === State.OPEN && !this._tabShown(this._tab))
+            this.open('home');
     }
 
     close() {
@@ -385,10 +406,12 @@ class Island extends St.Widget {
             this._tab = 'home';
 
         this._showOpenView(false);
+        this._openView.closeBatteryPanel();
+        this._openView.resetToday();
         this._fade(this._closedLayer, true, FADE_MS);
         this._openView.stopTicking();
+        this._live.setOpen(false);
         this._syncVisualizer();
-        this._syncRecordTick();
         this._springs.forEach(s => s.configure(CLOSE_SPRING));
         this._relayout();
     }
@@ -437,7 +460,7 @@ class Island extends St.Widget {
         // sharing the top-bar row with the clock.
         const hud = this._settings.get_string('hud-style') === 'row'
             ? this._hudRow : this._hud;
-        this._showPeek({
+        this.showPeek({
             view: hud,
             apply: () => hud.update(icon, label, level, maxLevel),
             timeout: HUD_TIMEOUT_MS,
@@ -448,52 +471,13 @@ class Island extends St.Widget {
     }
 
     /**
-     * Shows a new notification as a peek; clicking it opens the
-     * notification. Returns false when the notch cannot show it, so the
-     * caller can fall back to a GNOME banner.
+     * Shows a new notification as a peek. Returns false when the notch
+     * cannot show it, so the caller can fall back to a GNOME banner.
      */
     showNotification(notification) {
         if (this._state === State.OPEN || !this.visible)
             return false;
-
-        // A gicon named after the battery is gnome-settings-daemon's own
-        // battery notice; drop it while our battery-level peek is on or has
-        // just ended, so low and full battery do not pop twice.
-        if (notification.gicon instanceof Gio.ThemedIcon &&
-            notification.gicon.names.some(name => name.startsWith('battery')) &&
-            GLib.get_monotonic_time() < this._batteryNoticeUntil)
-            return true;
-
-        // GNOME posts one notification per screenshot and puts the image in
-        // gicon itself; recordings come with an ordinary icon. Match on the
-        // icon's type, never on the translated text.
-        if (this._settings.get_boolean('screenshot-peek') &&
-            notification.gicon instanceof St.ImageContent) {
-            this._showPeek({
-                view: this._screenshotPeek,
-                apply: () => this._screenshotPeek.update(notification.gicon),
-                timeout: SCREENSHOT_TIMEOUT_MS,
-                action: () => notification.activate(),
-                priority: Priority.NOTIFICATION,
-                key: 'screenshot',
-            });
-            return true;
-        }
-
-        const content = {
-            icon: notification.gicon ?? notification.source?.icon ?? null,
-            iconName: 'preferences-system-notifications-symbolic',
-            title: notification.title ?? '',
-            body: (notification.body ?? '').replace(/\s+/g, ' '),
-        };
-        this._showPeek({
-            view: this._messageSneak,
-            apply: () => this._messageSneak.update(content),
-            timeout: NOTIFICATION_TIMEOUT_MS,
-            action: () => notification.activate(),
-            priority: Priority.NOTIFICATION,
-        });
-        return true;
+        return this._systemPeeks.showNotification(notification);
     }
 
     _onTrackChanged(player, force = false) {
@@ -501,46 +485,13 @@ class Island extends St.Widget {
             return;
         if (!force && !this._settings.get_boolean('music-peek'))
             return;
-        this._showPeek({
+        this.showPeek({
             view: this._musicPeek,
             apply: () => this._musicPeek.update(player, this._artUri),
             timeout: MUSIC_PEEK_TIMEOUT_MS,
             action: () => this.open('home'),
             priority: Priority.MUSIC,
             key: 'music',
-        });
-    }
-
-    _onPlugged() {
-        if (!this._settings.get_boolean('show-battery-activity') || this._state === State.OPEN)
-            return;
-        this._showPeek({
-            view: this._batterySneak,
-            apply: () => this._batterySneak.update(this._battery),
-            timeout: BATTERY_TIMEOUT_MS,
-            key: 'battery',
-        });
-    }
-
-    _onBatteryWarning(level) {
-        this._showBatteryLevel(level >= 4 ? 'critical' : 'low');
-    }
-
-    _onBatteryFull() {
-        this._showBatteryLevel('full');
-    }
-
-    _showBatteryLevel(mark) {
-        if (!this._settings.get_boolean('show-battery-warnings') || this._state === State.OPEN)
-            return;
-        this._batteryNoticeUntil = GLib.get_monotonic_time() +
-            1000 * (BATTERY_LEVEL_TIMEOUT_MS + BATTERY_NOTICE_WINDOW_MS);
-        this._showPeek({
-            view: this._batterySneak,
-            apply: () => this._batterySneak.update(this._battery, mark),
-            timeout: BATTERY_LEVEL_TIMEOUT_MS,
-            priority: mark === 'critical' ? Priority.NOTIFICATION : Priority.STATUS,
-            key: 'battery-level',
         });
     }
 
@@ -560,273 +511,17 @@ class Island extends St.Widget {
         this._relayout();
     }
 
-    _onPrivacyStarted(kind, appName) {
-        if (!this._settings.get_boolean('show-privacy-indicators') ||
-            this._state === State.OPEN)
-            return;
-        const usingMic = kind === 'mic';
-        this._showPeek({
-            view: this._privacyPeek,
-            apply: () => this._privacyPeek.update({
-                iconName: usingMic ? 'audio-input-microphone-symbolic' : 'camera-web-symbolic',
-                title: appName
-                    ? `${appName} is using the ${usingMic ? 'microphone' : 'camera'}`
-                    : `An app is using the ${usingMic ? 'microphone' : 'camera'}`,
-            }),
-            timeout: PRIVACY_TIMEOUT_MS,
-            action: () => {
-                try {
-                    Gio.Subprocess.new(['gnome-control-center', 'privacy'],
-                        Gio.SubprocessFlags.NONE);
-                } catch (e) {
-                    console.warn(`Boring Notch: cannot open the privacy panel: ${e.message}`);
-                }
-            },
-            priority: Priority.STATUS,
-            key: 'privacy',
-        });
-    }
-
-    _onBluetooth(device, connected) {
-        if (!this._settings.get_boolean('show-bluetooth') || this._state === State.OPEN)
-            return;
-        this._showPeek({
-            view: this._bluetoothPeek,
-            apply: () => this._bluetoothPeek.update({
-                icon: device.icon,
-                title: device.alias,
-                // No matter how much charge a leaving device still had, the
-                // level it had is not what matters about a disconnect.
-                body: !connected ? 'Disconnected'
-                    : device.battery !== null ? `${device.battery}%` : 'Connected',
-            }),
-            timeout: BLUETOOTH_TIMEOUT_MS,
-            priority: Priority.STATUS,
-            key: 'bluetooth',
-        });
-    }
-
-    // The moon takes the show-dnd setting into account on every change,
-    // since it is standing UI; the peek only fires for real key changes.
+    // The moon beside the clock while Do Not Disturb is on.
     _syncMoon() {
-        this._dnd = !this._dndSettings.get_boolean('show-banners');
-        this._dndMoon.visible = this._settings.get_boolean('show-dnd') && this._dnd;
-        this._relayout();
-    }
-
-    _onBannersChanged() {
-        const dnd = !this._dndSettings.get_boolean('show-banners');
-        if (dnd !== this._dnd && this._settings.get_boolean('show-dnd') &&
-            this._state === State.CLOSED) {
-            this._showPeek({
-                view: this._dndPeek,
-                apply: () => this._dndPeek.update({
-                    iconName: 'weather-clear-night-symbolic',
-                    title: dnd ? 'Do Not Disturb on' : 'Do Not Disturb off',
-                }),
-                timeout: DND_TIMEOUT_MS,
-                priority: Priority.STATUS,
-                key: 'dnd',
-            });
-        }
-        this._syncMoon();
-    }
-
-    // Caps Lock and layout changes share one peek, so pressing both in
-    // short order updates it instead of queueing two.
-    _onCapsLock(on) {
-        this._showKeyboard(on ? 'Caps Lock on' : 'Caps Lock off');
-    }
-
-    _onLayoutChanged(source) {
-        this._showKeyboard(source.shortName, source.displayName);
-    }
-
-    _showKeyboard(title, body = '') {
-        if (!this._settings.get_boolean('show-keyboard') || this._state === State.OPEN)
-            return;
-        this._showPeek({
-            view: this._keyboardPeek,
-            apply: () => this._keyboardPeek.update({
-                iconName: 'input-keyboard-symbolic',
-                title, body,
-            }),
-            timeout: KEYBOARD_TIMEOUT_MS,
-            priority: Priority.STATUS,
-            key: 'keyboard',
-        });
-    }
-
-    _onRecordingChanged() {
-        if (this._recording.recording)
-            this._recordStartUs = GLib.get_monotonic_time();
-        else
-            this._stopRecordTick();
-        this._syncRecordLive();
-        this._syncRecordTick();
-        this._relayout();
-    }
-
-    // The output change shares nothing with the bluetooth or keyboard
-    // peeks; it gets its own turn.
-    _onAudioRouteChanged({name, iconName}) {
-        if (!this._settings.get_boolean('show-audio-route') || this._state === State.OPEN)
-            return;
-        this._showPeek({
-            view: this._audioRoutePeek,
-            apply: () => this._audioRoutePeek.update({iconName, title: name}),
-            timeout: AUDIO_ROUTE_TIMEOUT_MS,
-            priority: Priority.STATUS,
-            key: 'audio-route',
-        });
-    }
-
-    _onShowRecordingChanged() {
-        if (!this._recording.recording)
-            return;
-        this._syncRecordLive();
-        this._syncRecordTick();
-        this._relayout();
-    }
-
-    _syncRecordLive() {
-        this._recordLive.update({
-            iconName: 'media-record-symbolic',
-            title: formatSeconds(this._recordSeconds()),
-        });
-    }
-
-    _recordSeconds() {
-        return Math.floor((GLib.get_monotonic_time() - this._recordStartUs) / GLib.USEC_PER_SEC);
-    }
-
-    // The elapsed time ticks once a second, only while a recording is on
-    // and the notch is closed; when the notch opens or the recording ends,
-    // the ticking stops.
-    _syncRecordTick() {
-        const tick = this._recording.recording && this._state === State.CLOSED &&
-            this._settings.get_boolean('show-recording');
-        if (tick && !this._recordTickId) {
-            this._recordTickId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, () => {
-                this._syncRecordLive();
-                this._relayout();
-                return GLib.SOURCE_CONTINUE;
-            });
-        } else if (!tick && this._recordTickId) {
-            this._stopRecordTick();
-        }
-    }
-
-    _stopRecordTick() {
-        if (this._recordTickId) {
-            GLib.source_remove(this._recordTickId);
-            this._recordTickId = 0;
-        }
-    }
-
-    _onTimerFinished() {
-        global.display.get_sound_player().play_from_theme('complete', 'Timer done', null);
-        if (this._state === State.OPEN)
-            return;
-        this._showPeek({
-            view: this._timerLive,
-            apply: () => this._timerLive.update({iconName: 'alarm-symbolic', title: 'Done'}),
-            timeout: TIMER_DONE_TIMEOUT_MS,
-            action: () => this.open('timer'),
-            priority: Priority.NOTIFICATION,
-            key: 'timer',
-        });
-    }
-
-    _onDownloadFinished(file) {
-        if (!this._settings.get_boolean('show-downloads') || this._state === State.OPEN)
-            return;
-        this._showPeek({
-            view: this._messageSneak,
-            apply: () => this._messageSneak.update({
-                iconName: 'folder-download-symbolic',
-                title: 'Downloaded',
-                body: file.get_basename(),
-            }),
-            timeout: DOWNLOAD_TIMEOUT_MS,
-            action: () => {
-                const folder = this._downloads.folder?.get_uri();
-                if (folder)
-                    Gio.AppInfo.launch_default_for_uri(folder, global.create_app_launch_context(0, -1));
-            },
-        });
-    }
-
-    /**
-     * Queues a peek. Peeks share views, so `apply` fills the view in when
-     * the peek's turn comes. A peek with the same `key` as the one showing
-     * replaces it and restarts its time, so repeated volume presses update
-     * one peek instead of queueing many.
-     */
-    _showPeek({view, apply = null, timeout, action = null, priority = Priority.STATUS, key = null}) {
-        const peek = {view, apply, timeout, action, priority, key, queued: GLib.get_monotonic_time()};
-        const head = this._peeks[0];
-
-        if (key && head?.key === key) {
-            this._peeks[0] = peek;
-            this._startPeek(peek);
-            return;
-        }
-        if (key)
-            this._peeks = this._peeks.filter((p, i) => i === 0 || p.key !== key);
-
-        if (!head || priority >= head.priority) {
-            this._peeks.unshift(peek);
-            this._startPeek(peek);
-            return;
-        }
-        // Wait behind the one showing and anything more important.
-        const index = this._peeks.findIndex((p, i) => i > 0 && p.priority < priority);
-        this._peeks.splice(index < 0 ? this._peeks.length : index, 0, peek);
-    }
-
-    _startPeek(peek) {
-        peek.apply?.();
-        this._sneak = peek.view;
-        this._sneakAction = peek.action;
-        const arm = () => this._setTimeout('sneak', peek.timeout, () => {
-            // A bar the pointer is on or dragging would vanish under the
-            // hand; give it another turn of the timeout instead.
-            if (peek.view.isInUse?.())
-                arm();
-            else
-                this._endSneak();
-        });
-        arm();
-        this._syncMusicPeekScroll();
-        this._relayout();
-    }
-
-    // Ends the peek that is showing and moves on to the next one.
-    _endSneak() {
-        this._clearTimeout('sneak');
-        this._peeks.shift();
-        const now = GLib.get_monotonic_time();
-        this._peeks = this._peeks.filter(p => now - p.queued < STALE_US);
-        if (this._peeks.length > 0 && this._state === State.CLOSED) {
-            this._startPeek(this._peeks[0]);
-            return;
-        }
-        this._sneak = null;
-        this._sneakAction = null;
-        this._syncMusicPeekScroll();
-        // The timer view doubles as its own "done" peek; put it back.
-        this._syncTimer();
+        this._dndMoon.visible = this._settings.get_boolean('show-dnd') &&
+            !this._dndSettings.get_boolean('show-banners');
         this._relayout();
     }
 
     _clearPeeks() {
-        this._clearTimeout('sneak');
-        this._peeks = [];
-        this._sneak = null;
-        this._sneakAction = null;
+        this._peekQueue.clear();
         this._syncMusicPeekScroll();
-        this._syncTimer();
+        this._live.syncTimer();
     }
 
     // Long titles slide in the music peek, which only shows while the
@@ -834,26 +529,7 @@ class Island extends St.Widget {
     _syncMusicPeekScroll() {
         this._musicPeek.setScrolling(
             this._settings.get_boolean('scroll-titles') &&
-            this._sneak === this._musicPeek && this._state === State.CLOSED);
-    }
-
-    _syncTimer() {
-        if (this._sneak === this._timerLive)
-            return;
-        this._timerLive.update({
-            iconName: 'alarm-symbolic',
-            title: formatSeconds(this._timer.remaining),
-        });
-        this._relayout();
-    }
-
-    _syncDownloads() {
-        const count = this._downloads.count;
-        this._downloadLive.update({
-            iconName: 'folder-download-symbolic',
-            title: count > 1 ? `${count}` : '',
-        });
-        this._relayout();
+            this.peekView === this._musicPeek && this._state === State.CLOSED);
     }
 
     get _clockInNotch() {
@@ -895,6 +571,7 @@ class Island extends St.Widget {
             });
         }
 
+        this._lyrics.follow(this._settings.get_boolean('show-lyrics') ? player : null);
         this._syncArt(player);
         this._liveMedia.update(this._artUri);
         this._syncVisualizer();
@@ -923,7 +600,7 @@ class Island extends St.Widget {
             this._artUri = uri;
             this._liveMedia.update(uri);
             const player = this._media.activePlayer;
-            if (this._sneak === this._musicPeek)
+            if (this.peekView === this._musicPeek)
                 this._musicPeek.update(player, uri);
             this._openView.update(player, uri);
             this._loadArtColor(url, uri);
@@ -964,14 +641,11 @@ class Island extends St.Widget {
     // Peeks first, then live activities in order of how much they matter
     // right now.
     _currentClosedView() {
-        if (this._sneak)
-            return this._sneak;
-        if (this._recording.recording && this._settings.get_boolean('show-recording'))
-            return this._recordLive;
-        if (this._timer.active)
-            return this._timerLive;
-        if (this._downloads.count > 0 && this._settings.get_boolean('show-downloads'))
-            return this._downloadLive;
+        if (this.peekView)
+            return this.peekView;
+        const live = this._live.current();
+        if (live)
+            return live;
         if (this._showMedia)
             return this._liveMedia;
         return null;
@@ -979,16 +653,20 @@ class Island extends St.Widget {
 
     _onHoverChanged() {
         this._clearTimeout('hover');
+        // After a press on a peek's button, hover waits for the pointer to
+        // leave before it can open the notch again.
+        this._hoverHeld = this.hover && this._hoverHeld;
         if (this.hover)
             this._clearTimeout('keyboard');
 
-        if (this.hover && this._state === State.CLOSED) {
+        if (this.hover && !this._hoverHeld && this._state === State.CLOSED) {
             if (this._settings.get_boolean('open-on-hover'))
                 this._setTimeout('hover', this._settings.get_int('hover-delay'), () => this.open());
         } else if (!this.hover && this._state === State.OPEN) {
             this._setTimeout('hover', CLOSE_DELAY_MS, () => {
-                // Keep the notch open while the seek bar is being dragged.
-                if (!this.hover && !this._openView.busy)
+                // Keep the notch open while the seek bar or files are being
+                // dragged.
+                if (!this.hover && !this._openView.busy && !this._dragging)
                     this.close();
             });
         }
@@ -1108,10 +786,10 @@ class Island extends St.Widget {
         });
     }
 
-    // Device pixels per logical pixel: 1.25 at 125% fractional scaling.
+    // Device pixels per logical pixel on the notch's monitor: 1.25 at 125%
+    // fractional scaling. Other monitors may have their own scale.
     get _deviceScale() {
-        const views = global.stage.peek_stage_views();
-        return Math.max(1, ...views.map(v => v.get_scale()));
+        return Math.max(1, global.display.get_monitor_scale(this.monitorIndex));
     }
 
     // Rounds to whole device pixels. At fractional scales a logical pixel
@@ -1123,7 +801,7 @@ class Island extends St.Widget {
     }
 
     _applyGeometry() {
-        const monitor = Main.layoutManager.primaryMonitor;
+        const monitor = Main.layoutManager.monitors[this.monitorIndex];
         if (!monitor)
             return;
 
@@ -1178,21 +856,20 @@ class Island extends St.Widget {
             this._media.activePlayer?.playPause();
             return Clutter.EVENT_STOP;
         }
-        // While the recorder activity is showing, a click stops the
-        // recording, like GNOME's own recording indicator does.
-        if (this._sneak === null && this._recording.recording &&
-            this._settings.get_boolean('show-recording') &&
-            this._closedView === this._recordLive) {
-            this._recording.stop();
+        if (this.peekView === null && this._live.press(this._closedView))
             return Clutter.EVENT_STOP;
-        }
-        // Pressing the HUD bar sets the level; it must not open the notch.
-        if ((this._sneak === this._hud || this._sneak === this._hudRow) &&
-            this._sneak.isBar(event.get_source()))
+        // A press on a control inside a peek (the volume bar, a
+        // notification's button) is the control's. It deals with the peek, so
+        // hover must not open the notch afterwards until the pointer has left
+        // and come back.
+        if (this.peekView?.takesPress(event)) {
+            this._hoverHeld = true;
+            this._clearTimeout('hover');
             return Clutter.EVENT_PROPAGATE;
-        if (this._sneakAction) {
-            const action = this._sneakAction;
-            this._endSneak();
+        }
+        const action = this._peekQueue.current?.action;
+        if (action) {
+            this._peekQueue.end();
             action();
         } else {
             this.open();
@@ -1267,55 +944,20 @@ class Island extends St.Widget {
     }
 
     _changeVolume(steps) {
-        const control = getMixerControl();
-        const sink = control.get_default_sink();
-        if (!sink)
+        const current = getVolume();
+        if (current === null)
             return;
-        const normal = control.get_vol_max_norm();
-        const top = this._soundSettings.get_boolean('allow-volume-above-100-percent')
-            ? control.get_vol_max_amplified() : normal;
-        const volume = Math.max(0, Math.min(top, sink.volume + steps * VOLUME_STEP * normal));
-        sink.volume = volume;
-        if (sink.is_muted && volume > 0)
-            sink.change_is_muted(false);
-        sink.push_volume();
-
-        const level = volume / normal;
-        let icon = 'audio-volume-muted-symbolic';
-        if (level > 2 / 3)
-            icon = 'audio-volume-high-symbolic';
-        else if (level > 1 / 3)
-            icon = 'audio-volume-medium-symbolic';
-        else if (level > 0)
-            icon = 'audio-volume-low-symbolic';
-        this.showHud(new Gio.ThemedIcon({name: icon}), null, level, top / normal);
+        const {level, maxLevel} = setVolume(current + steps * VOLUME_STEP, this._soundSettings);
+        this.showHud(volumeIcon(level), null, level, maxLevel);
     }
 
     // Sets a level dragged from the HUD bar and tells the view what it came
     // to, or returns null where nothing here can set it.
     _adjustHud(kind, level, maxLevel) {
-        if (kind === 'volume') {
-            const control = getMixerControl();
-            const sink = control.get_default_sink();
-            if (!sink)
-                return null;
-            const normal = control.get_vol_max_norm();
-            const top = this._soundSettings.get_boolean('allow-volume-above-100-percent')
-                ? control.get_vol_max_amplified() : normal;
-            const volume = Math.min(level * normal, top);
-            sink.volume = volume;
-            if (sink.is_muted && volume > 0)
-                sink.change_is_muted(false);
-            sink.push_volume();
-            return volume / normal;
-        }
-        if (kind === 'brightness') {
-            const scale = Main.brightnessManager?.globalScale;
-            if (!scale)
-                return null;
-            scale.value = level / maxLevel;
-            return level;
-        }
+        if (kind === 'volume')
+            return setVolume(level, this._soundSettings)?.level ?? null;
+        if (kind === 'brightness')
+            return setBrightness(level, maxLevel);
         return null;
     }
 
@@ -1356,7 +998,9 @@ class Island extends St.Widget {
 
     _onDestroy() {
         this._menu.destroy();
-        this._stopRecordTick();
+        this._peekQueue.destroy();
+        this._systemPeeks.destroy();
+        this._live.destroy();
         this._timeouts.forEach(id => GLib.source_remove(id));
         this._timeouts.clear();
         this._animator.destroy();

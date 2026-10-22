@@ -33,9 +33,12 @@ with GNOME's own screencast.
   dot when notifications are waiting. Clicking the notch or pressing Super+V
   opens the **Today** tab: GNOME's own notification list on the left, and the
   month calendar on the right with the selected day's events, which scroll
-  when a day is busy.
+  when a day is busy. Each event has a bar in its calendar's colour, and
+  all-day events can be hidden. With nothing playing, the Home tab names the
+  next event today under the date, with its time.
 - **Notification peeks:** new notifications slide out of the notch instead of
-  showing GNOME banners. Click one to open it. Critical notifications still
+  showing GNOME banners. Click one to open it, or press one of its buttons
+  (up to two, such as Reply) to run that action. Critical notifications still
   use the GNOME banner.
 - **Music:** album art and four bars in the closed notch while something
   plays. The bars follow the bass, mids and treble of what's playing, and both
@@ -44,18 +47,76 @@ with GNOME's own screencast.
   artists slide through twice instead of being cut short. The Home tab has the
   full player with seek bar, shuffle, previous,
   play/pause, next and repeat. This works with any MPRIS player (Spotify,
-  Firefox, Chromium, Rhythmbox, VLC and most others).
+  Firefox, Chromium, Rhythmbox, VLC and most others). In Settings you can
+  name a preferred player, and list players the notch should ignore.
 - **Timer:** the Timer tab has 1–25 minute presets. While it runs, the
-  countdown shows in the closed notch, and it chimes when done.
+  countdown shows in the closed notch, and it chimes when done. A stopwatch
+  and a Pomodoro (25 minutes of work, then 5 of break, both lengths set in
+  Settings) sit beside it; the phases follow each other until it is reset,
+  and whichever mode runs shows in the closed notch.
+- **Weather:** off by default. With **Weather on the Today tab** on and a
+  latitude and longitude set in Settings, the Today tab shows the temperature
+  and today's high and low, from Open-Meteo. It asks when the tab opens, at
+  most every 30 minutes, and hides the line when a request fails.
+- **Next event:** when the next timed event today starts within 15 minutes
+  (a setting), the closed notch shows "in 12 min" until it starts. It counts
+  down once a minute, and clicking it opens the Today tab.
+- **Synced lyrics (off by default):** the line being sung shows under the
+  artist on the Home tab, from lrclib.net. Lyrics are looked up once per
+  track and kept in the cache folder; tracks without synced lyrics show none.
+- **System tab (off by default):** a System tab in the open notch shows the
+  processor's use, memory, network speeds and, when the machine has one, the
+  processor's temperature, each with its last half minute as small bars. It
+  reads `/proc` and `/sys` once a second, and only while that tab is on
+  screen; nothing is read when the notch is closed.
+- **Display:** in Settings, pick the display that shows the notch: the
+  primary display (the default) or one of the connected displays by its
+  connector name, such as HDMI-1. When that display is unplugged, the notch
+  goes to the primary display. The notch shows on one display at a time.
 - **Downloads:** browser downloads show while they run, and a peek with the
   file name when they finish. Click it to open the Downloads folder.
+- **App progress:** apps that report progress to GNOME through the Unity
+  LauncherEntry API (browsers, file managers, torrent clients) show their
+  name, icon and a progress bar in the closed notch. It is on by default;
+  switch off **App progress** in Settings to stop it.
+- **Other programs:** scripts can show their own live activities and peeks
+  over the session bus, at `org.gnome.Shell.Extensions.BoringNotch` with
+  `Start`, `Update`, `End` and `Peek` (see `src/activityApi.js` for the
+  arguments and limits). Switch off **Other programs** in Settings to refuse
+  them.
+- **Shelf:** the Shelf tab holds up to 30 files, newest first. Paste the files
+  copied in your file manager, and finished downloads and new screenshots are
+  added by themselves (a setting). Each row opens the file, shows it in the
+  file manager, or removes it. The shelf keeps links to the files, never
+  copies, in the cache folder; a file that has been moved or deleted leaves
+  the list when the tab opens.
+- **Drag and drop (shelf):** drag files from Files or the desktop to the
+  notch: it opens on the Shelf and the dropped files are added. GNOME Shell
+  is never handed dragged files on Wayland, so for each drag a small
+  invisible helper window (`helper/dropTarget.js`, GTK 4) is placed under the
+  open notch to take the drop. Switch it off with **Drag files to the
+  notch**.
+- **Quick Share:** a Share button on each shelf file lists the ways this
+  computer can send it: a phone through GSConnect, Bluetooth, LocalSend and
+  email. Only the ones installed or running are listed, and the button is
+  hidden when there are none.
+- **Clipboard history (off by default):** with it on, the text you copy is
+  read each time the clipboard changes, and the last 25 texts of up to 2000
+  characters are listed in the Shelf tab's Clipboard view. Click one to copy
+  it again. It is kept in memory only, never written to disk. Text that a
+  password manager marks as secret (KeePassXC does) is skipped; other managers
+  may not mark it.
 - **Volume and brightness:** changes appear inside the notch instead of the
   GNOME popup: as a bar beside the icon in the top row, or as a row grown
   under the clock, with the percentage beside the bar. Drag the bar to set
   the volume or the screen brightness.
 - **Battery:** a peek when a charger is plugged in or removed, and the charge
   level in the header. Also warnings when the battery runs low or finishes
-  charging.
+  charging. Click the battery in the open notch's header for its status, time
+  to full or empty, health and energy rate, and whether Power Saver is on. A
+  peek says when the power profile changes to or from Power Saver.
+- **Privacy:** the weather is off by default. When it is on, the coordinates
+  you set are sent to open-meteo.com.
 - **Privacy:** small dots beside the clock when the microphone, camera or
   screen sharing is in use, and a peek naming the app. It only reads which
   apps are using them; nothing is recorded.
@@ -96,6 +157,10 @@ The notch size, corner radii and spring physics are copied from boring.notch:
 0.45 s and 1.0 when closing.
 
 ## Privacy
+
+With **Synced lyrics** on (off by default), each track's title, artist,
+album and length are sent to lrclib.net to find its lyrics. Nothing is sent
+with the setting off.
 
 To make the bars follow the music, the extension runs `gst-launch-1.0` to
 measure the loudness of what your speakers are playing. It reads the speaker

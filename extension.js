@@ -5,20 +5,28 @@ import {Extension, InjectionManager} from 'resource:///org/gnome/shell/extension
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Urgency} from 'resource:///org/gnome/shell/ui/messageTray.js';
 
+import {ActivityApi} from './src/activityApi.js';
 import {ArtCache} from './src/art.js';
 import {ArtColorLoader} from './src/artColor.js';
 import {AudioLevels, IGNORED_RECORDING_APPS} from './src/audio.js';
 import {AudioRouteMonitor} from './src/audioRoute.js';
 import {BatteryMonitor} from './src/battery.js';
 import {BluetoothMonitor} from './src/bluetooth.js';
+import {ClipboardHistory} from './src/clipboard.js';
 import {DownloadWatcher} from './src/downloads.js';
 import {Island} from './src/island.js';
 import {KeyboardMonitor} from './src/keyboard.js';
+import {LauncherEntryWatcher} from './src/launcherEntry.js';
+import {LyricsService} from './src/lyrics.js';
 import {MediaManager} from './src/media.js';
 import {PrivacyMonitor} from './src/privacy.js';
 import {RecordingMonitor} from './src/recording.js';
+import {Shelf} from './src/shelf.js';
+import {ShelfDrop} from './src/shelfDrop.js';
 import {ScaledStylesheet} from './src/style.js';
-import {Timer} from './src/timer.js';
+import {SystemMonitor} from './src/sysmon.js';
+import {exclusive, Pomodoro, Stopwatch, Timer} from './src/timer.js';
+import {WeatherSource} from './src/weather.js';
 import {Zoom} from './src/zoom.js';
 
 /**
@@ -81,37 +89,50 @@ export default class BoringNotchExtension extends Extension {
         this._settings = this.getSettings();
         this._zoom = new Zoom(this._settings);
         this._stylesheet = new ScaledStylesheet(this.dir.resolve_relative_path('src/style.css'), this._zoom, this._settings);
-        this._media = new MediaManager();
-        this._battery = new BatteryMonitor();
-        this._timer = new Timer();
-        this._downloads = new DownloadWatcher();
-        this._artCache = new ArtCache();
-        this._artColor = new ArtColorLoader();
-        this._audio = new AudioLevels();
-        this._privacy = new PrivacyMonitor();
-        this._bluetooth = new BluetoothMonitor();
-        this._keyboard = new KeyboardMonitor();
-        this._recording = new RecordingMonitor();
-        this._audioRoute = new AudioRouteMonitor();
+        const timer = new Timer();
+        const stopwatch = new Stopwatch();
+        const pomodoro = new Pomodoro(this._settings);
+        // The notch shows one timer figure: starting a mode resets the others.
+        exclusive(timer, stopwatch, pomodoro);
+        // Everything the notch watches or drives; each has destroy().
+        const downloads = new DownloadWatcher();
+        this._sources = {
+            media: new MediaManager(this._settings),
+            battery: new BatteryMonitor(),
+            timer,
+            stopwatch,
+            pomodoro,
+            downloads,
+            shelf: new Shelf({settings: this._settings, downloads}),
+            clipboard: new ClipboardHistory({settings: this._settings}),
+            artCache: new ArtCache(),
+            artColor: new ArtColorLoader(),
+            audio: new AudioLevels(),
+            privacy: new PrivacyMonitor(),
+            bluetooth: new BluetoothMonitor(),
+            keyboard: new KeyboardMonitor(),
+            recording: new RecordingMonitor(),
+            audioRoute: new AudioRouteMonitor(),
+            activities: new ActivityApi(this._settings),
+            launcher: new LauncherEntryWatcher(this._settings),
+            weather: new WeatherSource(this._settings),
+            system: new SystemMonitor(),
+            lyrics: new LyricsService(),
+        };
 
         this._island = new Island({
             settings: this._settings,
             zoom: this._zoom,
-            media: this._media,
-            battery: this._battery,
-            timer: this._timer,
-            downloads: this._downloads,
-            audio: this._audio,
-            privacy: this._privacy,
-            bluetooth: this._bluetooth,
-            keyboard: this._keyboard,
-            recording: this._recording,
-            audioRoute: this._audioRoute,
-            artCache: this._artCache,
-            artColor: this._artColor,
+            sources: this._sources,
             openPreferences: () => this.openPreferences(),
         });
         Main.layoutManager.addTopChrome(this._island, {trackFullscreen: true});
+        this._shelfDrop = new ShelfDrop({
+            settings: this._settings,
+            shelf: this._sources.shelf,
+            island: this._island,
+            helperPath: this.dir.get_child('helper').get_child('dropTarget.js').get_path(),
+        });
 
         this._clockMover = new ClockMover(this._settings);
         this._injectIntoShell();
@@ -200,34 +221,14 @@ export default class BoringNotchExtension extends Extension {
         this._clockMover.destroy();
         this._clockMover = null;
 
+        this._shelfDrop.destroy();
+        this._shelfDrop = null;
         Main.layoutManager.removeChrome(this._island);
         this._island.destroy();
         this._island = null;
 
-        this._privacy.destroy();
-        this._privacy = null;
-        this._bluetooth.destroy();
-        this._bluetooth = null;
-        this._keyboard.destroy();
-        this._keyboard = null;
-        this._recording.destroy();
-        this._recording = null;
-        this._audioRoute.destroy();
-        this._audioRoute = null;
-        this._audio.destroy();
-        this._audio = null;
-        this._artCache.destroy();
-        this._artCache = null;
-        this._artColor.destroy();
-        this._artColor = null;
-        this._downloads.destroy();
-        this._downloads = null;
-        this._timer.destroy();
-        this._timer = null;
-        this._battery.destroy();
-        this._battery = null;
-        this._media.destroy();
-        this._media = null;
+        Object.values(this._sources).forEach(source => source.destroy());
+        this._sources = null;
         this._stylesheet.destroy();
         this._stylesheet = null;
         this._zoom.destroy();

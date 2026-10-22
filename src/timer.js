@@ -3,8 +3,23 @@ import GLib from 'gi://GLib';
 import {EventEmitter} from 'resource:///org/gnome/shell/misc/signals.js';
 
 /**
- * A countdown timer. Emits 'changed' every second while it runs and on
- * every state change, and 'finished' when it reaches zero.
+ * Makes the timers exclusive: when one starts counting, the others reset.
+ * The countdown, the stopwatch and the Pomodoro are linked this way, so it
+ * holds wherever they are started from. Each emits 'started' for this.
+ */
+export function exclusive(...timers) {
+    for (const timer of timers) {
+        timer.connect('started', () => timers.forEach(other => {
+            if (other !== timer)
+                other.reset();
+        }));
+    }
+}
+
+/**
+ * A countdown timer. Emits 'started' when it starts or resumes counting,
+ * 'changed' every second while it runs and on every state change, and
+ * 'finished' when it reaches zero.
  */
 export class Timer extends EventEmitter {
     constructor() {
@@ -20,6 +35,11 @@ export class Timer extends EventEmitter {
         if (!this.running)
             return Math.ceil(this._remaining);
         return Math.max(0, Math.ceil((this._endTime - GLib.get_monotonic_time()) / GLib.USEC_PER_SEC));
+    }
+
+    // The figure the notch and the tab show: what is left.
+    get seconds() {
+        return this.remaining;
     }
 
     get duration() {
@@ -45,6 +65,7 @@ export class Timer extends EventEmitter {
     resume() {
         if (this.running || this._remaining <= 0)
             return;
+        this.emit('started');
         this._endTime = GLib.get_monotonic_time() + this._remaining * GLib.USEC_PER_SEC;
         this._tickId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, () => {
             if (this.remaining > 0) {
@@ -82,6 +103,153 @@ export class Timer extends EventEmitter {
 
     destroy() {
         this._stopTicking();
+        this.disconnectAll();
+    }
+}
+
+/**
+ * A stopwatch that counts up from zero. Emits 'started' when it starts or
+ * resumes, and 'changed' every second while it runs and on every state
+ * change.
+ */
+export class Stopwatch extends EventEmitter {
+    constructor() {
+        super();
+        this._elapsed = 0;
+        this._startTime = 0;
+        this._tickId = 0;
+    }
+
+    // Whole seconds counted so far.
+    get seconds() {
+        return Math.floor(this._microseconds() / GLib.USEC_PER_SEC);
+    }
+
+    get running() {
+        return this._tickId !== 0;
+    }
+
+    // Counting, or paused with time on the clock.
+    get active() {
+        return this.running || this._elapsed > 0;
+    }
+
+    start() {
+        this._elapsed = 0;
+        this.resume();
+    }
+
+    resume() {
+        if (this.running)
+            return;
+        this.emit('started');
+        this._startTime = GLib.get_monotonic_time();
+        this._tickId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, () => {
+            this.emit('changed');
+            return GLib.SOURCE_CONTINUE;
+        });
+        this.emit('changed');
+    }
+
+    pause() {
+        if (!this.running)
+            return;
+        this._elapsed = this._microseconds();
+        this._stopTicking();
+        this.emit('changed');
+    }
+
+    reset() {
+        this._stopTicking();
+        this._elapsed = 0;
+        this.emit('changed');
+    }
+
+    _microseconds() {
+        if (!this.running)
+            return this._elapsed;
+        return this._elapsed + GLib.get_monotonic_time() - this._startTime;
+    }
+
+    _stopTicking() {
+        if (this._tickId)
+            GLib.source_remove(this._tickId);
+        this._tickId = 0;
+    }
+
+    destroy() {
+        this._stopTicking();
+        this.disconnectAll();
+    }
+}
+
+/**
+ * Work and break phases, one after the other: work, then break, then work
+ * again, each starting as the last ends. The phase lengths come from the
+ * settings. Emits 'started' when a phase starts counting, 'changed' as the
+ * countdown ticks, and 'finished' with the phase that ended when one ends.
+ */
+export class Pomodoro extends EventEmitter {
+    constructor(settings) {
+        super();
+        this._settings = settings;
+        this._countdown = new Timer();
+        this._work = true;
+        this._countdown.connectObject(
+            'started', () => this.emit('started'),
+            'changed', () => this.emit('changed'),
+            'finished', () => this._onFinished(),
+            this);
+    }
+
+    get seconds() {
+        return this._countdown.remaining;
+    }
+
+    get phase() {
+        return this._work ? 'work' : 'break';
+    }
+
+    get running() {
+        return this._countdown.running;
+    }
+
+    get active() {
+        return this._countdown.active;
+    }
+
+    start() {
+        this._work = true;
+        this._countdown.start(this._phaseSeconds());
+    }
+
+    resume() {
+        this._countdown.resume();
+    }
+
+    pause() {
+        this._countdown.pause();
+    }
+
+    reset() {
+        this._work = true;
+        this._countdown.reset();
+    }
+
+    _phaseSeconds() {
+        const key = this._work ? 'pomodoro-work-minutes' : 'pomodoro-break-minutes';
+        return this._settings.get_int(key) * 60;
+    }
+
+    _onFinished() {
+        const ended = this.phase;
+        this._work = !this._work;
+        this._countdown.start(this._phaseSeconds());
+        this.emit('finished', ended);
+    }
+
+    destroy() {
+        this._countdown.destroy();
         this.disconnectAll();
     }
 }

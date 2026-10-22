@@ -6,7 +6,7 @@ ZIP = dist/$(UUID).shell-extension.zip
 pack:
 	mkdir -p dist
 	gnome-extensions pack --force --out-dir=dist \
-		--extra-source=src --extra-source=LICENSE .
+		--extra-source=src --extra-source=helper --extra-source=LICENSE .
 
 install: pack
 	gnome-extensions install --force $(ZIP)

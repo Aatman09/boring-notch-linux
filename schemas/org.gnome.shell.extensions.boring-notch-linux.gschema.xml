@@ -88,6 +88,10 @@
       <default>true</default>
       <summary>Show new notifications in the notch instead of as GNOME banners</summary>
     </key>
+    <key name="notification-buttons" type="b">
+      <default>true</default>
+      <summary>Show up to two of a notification's own buttons on its peek; pressing one runs that action</summary>
+    </key>
     <key name="show-downloads" type="b">
       <default>true</default>
       <summary>Show browser downloads in the notch</summary>
@@ -161,9 +165,122 @@
       <default>"inline"</default>
       <summary>How a level change shows in the closed notch: the bar beside the icon, or a row under the clock</summary>
     </key>
+    <key name="timer-modes" type="b">
+      <default>true</default>
+      <summary>Show the stopwatch and Pomodoro modes on the Timer tab, beside the countdown</summary>
+    </key>
+    <key name="pomodoro-work-minutes" type="i">
+      <range min="1" max="120"/>
+      <default>25</default>
+      <summary>Length of a Pomodoro work phase, in minutes</summary>
+    </key>
+    <key name="pomodoro-break-minutes" type="i">
+      <range min="1" max="60"/>
+      <default>5</default>
+      <summary>Length of a Pomodoro break, in minutes</summary>
+    </key>
+    <key name="player-selection" type="b">
+      <default>true</default>
+      <summary>Use the preferred player and the ignored players below when choosing which music player the notch shows</summary>
+    </key>
+    <key name="preferred-player" type="s">
+      <default>""</default>
+      <summary>Part of the name or bus name of the player the notch follows when it plays; empty for none</summary>
+    </key>
+    <key name="ignored-players" type="s">
+      <default>""</default>
+      <summary>Parts of the names or bus names of players the notch ignores, separated by commas</summary>
+    </key>
     <key name="hud-percentage" type="b">
       <default>true</default>
       <summary>Show the number next to the level bar</summary>
+    </key>
+    <key name="battery-details" type="b">
+      <default>true</default>
+      <summary>Open the battery details when the battery in the header of the open notch is clicked</summary>
+    </key>
+    <key name="power-saver-peek" type="b">
+      <default>true</default>
+      <summary>Peek when the power profile changes to or from Power Saver</summary>
+    </key>
+    <key name="hide-all-day-events" type="b">
+      <default>false</default>
+      <summary>Leave the all-day events out of the event list in the Today tab</summary>
+    </key>
+    <key name="event-colors" type="b">
+      <default>true</default>
+      <summary>Show a bar in each calendar's colour beside its events in the Today tab</summary>
+    </key>
+    <key name="up-next" type="b">
+      <default>true</default>
+      <summary>Name the next event today, with its time, on the Home tab when nothing is playing</summary>
+    </key>
+    <key name="show-next-event" type="b">
+      <default>true</default>
+      <summary>Count down to the next event in the closed notch while it starts within the lead time</summary>
+    </key>
+    <key name="meeting-lead-minutes" type="i">
+      <range min="1" max="60"/>
+      <default>15</default>
+      <summary>How many minutes before an event its countdown starts showing in the closed notch</summary>
+    </key>
+    <key name="allow-external-activities" type="b">
+      <default>true</default>
+      <summary>Let other programs show live activities and peeks through the D-Bus API on org.gnome.Shell.Extensions.BoringNotch</summary>
+    </key>
+    <key name="show-app-progress" type="b">
+      <default>true</default>
+      <summary>Show the progress that apps report through the Unity LauncherEntry API (browser downloads, file copies) as a live activity</summary>
+    </key>
+    <key name="show-weather" type="b">
+      <default>false</default>
+      <summary>Show the current weather and today's high and low on the Today tab, fetched from Open-Meteo</summary>
+    </key>
+    <key name="weather-latitude" type="d">
+      <range min="-90" max="90"/>
+      <default>0.0</default>
+      <summary>Latitude of the place whose weather the Today tab shows; zero for both coordinates means unset</summary>
+    </key>
+    <key name="weather-longitude" type="d">
+      <range min="-180" max="180"/>
+      <default>0.0</default>
+      <summary>Longitude of the place whose weather the Today tab shows</summary>
+    </key>
+    <key name="weather-place" type="s">
+      <default>''</default>
+      <summary>A name for the weather's place, shown before the temperature</summary>
+    </key>
+    <key name="show-shelf" type="b">
+      <default>true</default>
+      <summary>Show the Shelf tab in the open notch, with the files you pasted, downloaded or captured</summary>
+    </key>
+    <key name="shelf-auto-add" type="b">
+      <default>true</default>
+      <summary>Add finished downloads and new screenshots to the shelf</summary>
+    </key>
+    <key name="clipboard-history" type="b">
+      <default>false</default>
+      <summary>Read the clipboard whenever something is copied and keep the recent text, in memory only, for the Clipboard list of the Shelf tab</summary>
+    </key>
+    <key name="shelf-drop" type="b">
+      <default>true</default>
+      <summary>Open the Shelf when files are dragged to the notch, and add the files dropped on it; a small invisible helper window takes the drop</summary>
+    </key>
+    <key name="shelf-share" type="b">
+      <default>true</default>
+      <summary>Show a Share button on shelf files, for the sharing targets found on this computer: GSConnect, Bluetooth, LocalSend and email</summary>
+    </key>
+    <key name="show-lyrics" type="b">
+      <default>false</default>
+      <summary>Show the synced lyrics line under the artist on the Home tab, looked up on lrclib.net with each track's title, artist, album and length</summary>
+    </key>
+    <key name="notch-monitor" type="s">
+      <default>'primary'</default>
+      <summary>Connector name of the display that shows the notch, such as HDMI-1, or primary for the primary display</summary>
+    </key>
+    <key name="show-system-tab" type="b">
+      <default>false</default>
+      <summary>Show a System tab in the open notch with processor, memory, network and temperature readings, sampled only while the tab is on screen</summary>
     </key>
   </schema>
 </schemalist>

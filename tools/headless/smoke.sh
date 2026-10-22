@@ -29,12 +29,12 @@ check "log has no JS errors at startup" $([ "$(errors)" = 0 ] && echo 1 || echo 
 #    a themed icon. A crash there once froze every later notification.
 val 'global.bn._clearPeeks(); Main.messageTray.getSources().forEach(s => s.destroy()); "x"' >/dev/null; wait_a_bit 1
 DBUS_SESSION_BUS_ADDRESS=$(bus) notify-send -i dialog-information "Smoke test" "themed icon"; wait_a_bit 1.2
-shown=$(val 'String(global.bn._sneak !== null || global.bn._peeks.length > 0)')
+shown=$(val 'String(global.bn.peekView !== null || global.bn._peekQueue.length > 0)')
 queue=$(val 'String(Main.messageTray.queueCount)')
 check "a notification with a themed icon shows a peek" $([ "$shown" = true ] && echo 1 || echo 0) "peek shown=$shown"
 check "and does not leave the tray queue stuck" $([ "$queue" = 0 ] && echo 1 || echo 0) "queue=$queue"
 val 'global.bn._clearPeeks(); Main.notify("Smoke test", "plain"); "x"' >/dev/null; wait_a_bit 1.2
-check "a plain notification shows a peek afterwards" $([ "$(val 'String(global.bn._sneak !== null)')" = true ] && echo 1 || echo 0) "no peek"
+check "a plain notification shows a peek afterwards" $([ "$(val 'String(global.bn.peekView !== null)')" = true ] && echo 1 || echo 0) "no peek"
 val 'global.bn._clearPeeks(); "x"' >/dev/null
 
 # 4. Disable and enable again: still works, one notch, one handler per event.
@@ -44,8 +44,8 @@ state=$(val "Main.extensionManager.lookup('$UUID').state")
 check "disable then enable leaves it enabled" $([ "$state" = 1 ] && echo 1 || echo 0) "state=$state"
 check "and exactly one notch on screen" $([ "$(val 'String(Main.layoutManager.uiGroup.get_children().filter(a => a.name === "boring-notch").length)')" = 1 ] && echo 1 || echo 0) "wrong count"
 val 'global.bn = Main.layoutManager.uiGroup.get_children().find(a => a.name === "boring-notch"); "x"' >/dev/null
-calls=$(val 'global.bn._clearPeeks(); let n = 0; const orig = global.bn._showPeek.bind(global.bn); global.bn._showPeek = p => { n++; return orig(p); };
-  global.bn._keyboard.emit("caps-lock", true); global.bn._battery.emit("warning", 3); const r = n; global.bn._showPeek = orig; global.bn._clearPeeks(); String(r)')
+calls=$(val 'global.bn._clearPeeks(); let n = 0; const orig = global.bn.showPeek.bind(global.bn); global.bn.showPeek = p => { n++; return orig(p); };
+  global.bn._keyboard.emit("caps-lock", true); global.bn._battery.emit("warning", 3); const r = n; global.bn.showPeek = orig; global.bn._clearPeeks(); String(r)')
 check "each event reaches the island once after re-enabling" $([ "$calls" = 2 ] && echo 1 || echo 0) "calls=$calls, expected 2 (a leaked listener doubles them)"
 
 # 5. No errors after all of that.

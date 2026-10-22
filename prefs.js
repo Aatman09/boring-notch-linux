@@ -48,6 +48,23 @@ function spinRow(settings, key, title, subtitle, [lower, upper, step], digits = 
     return row;
 }
 
+// A latitude or longitude typed as text. It is kept only when it is a
+// number within the limit; anything else puts the old value back.
+function coordinateRow(settings, key, title, limit) {
+    const row = new Adw.EntryRow({title});
+    const show = () => {
+        row.text = String(settings.get_double(key));
+    };
+    show();
+    row.connect('apply', () => {
+        const value = Number(row.text);
+        if (row.text.trim() !== '' && Number.isFinite(value) && Math.abs(value) <= limit)
+            settings.set_double(key, value);
+        show();
+    });
+    return row;
+}
+
 // A dropdown for a string setting with a fixed set of values.
 function choiceRow(title, subtitle, choices, get, set) {
     const row = new Adw.ComboRow({
@@ -86,6 +103,19 @@ function shortcutRow(settings, key, title) {
     return row;
 }
 
+// The connectors Mutter reports now, such as eDP-1 or HDMI-1.
+function connectedMonitors() {
+    try {
+        const [, monitors] = Gio.DBus.session.call_sync(
+            'org.gnome.Mutter.DisplayConfig', '/org/gnome/Mutter/DisplayConfig',
+            'org.gnome.Mutter.DisplayConfig', 'GetCurrentState', null, null,
+            Gio.DBusCallFlags.NONE, -1, null).deepUnpack();
+        return monitors.map(([info]) => info[0]);
+    } catch {
+        return [];
+    }
+}
+
 function generalPage(settings) {
     const page = new Adw.PreferencesPage({title: 'General', icon_name: 'preferences-system-symbolic'});
 
@@ -107,9 +137,30 @@ function generalPage(settings) {
         CLOCK_MODES, () => settings.get_string('clock-mode'), v => settings.set_string('clock-mode', v));
     settings.connect('changed::clock-mode', syncClock);
     notch.add(clock);
+    const current = settings.get_string('notch-monitor');
+    const displays = [['primary', 'Primary display'], ...connectedMonitors().map(c => [c, c])];
+    if (!displays.some(([id]) => id === current))
+        displays.push([current, `${current} (not connected)`]);
+    const [display] = choiceRow('Display',
+        'The display that shows the notch. When it is not connected, the notch goes to the primary display.',
+        displays, () => settings.get_string('notch-monitor'), v => settings.set_string('notch-monitor', v));
+    notch.add(display);
     notch.add(switchRow(settings, 'remember-last-tab', 'Remember the last tab',
         'Open on the tab used last time instead of Home'));
     page.add(notch);
+
+    const timer = new Adw.PreferencesGroup({title: 'Timer'});
+    timer.add(switchRow(settings, 'timer-modes', 'Stopwatch and Pomodoro',
+        'Modes beside the countdown on the Timer tab. Only one runs at a time, and it shows in the closed notch.'));
+    const work = spinRow(settings, 'pomodoro-work-minutes', 'Pomodoro work',
+        'Minutes of work in each Pomodoro. When work ends, the break starts by itself, and after it the next work phase.', [1, 120, 1]);
+    const rest = spinRow(settings, 'pomodoro-break-minutes', 'Pomodoro break',
+        'Minutes of break in each Pomodoro', [1, 60, 1]);
+    for (const row of [work, rest])
+        settings.bind('timer-modes', row, 'sensitive', Gio.SettingsBindFlags.GET);
+    timer.add(work);
+    timer.add(rest);
+    page.add(timer);
 
     const colour = new Adw.PreferencesGroup({title: 'Colour'});
     const [accent, syncAccent] = choiceRow('Accent',
@@ -152,7 +203,7 @@ function generalPage(settings) {
 
     const shortcuts = new Adw.PreferencesGroup({
         title: 'Shortcuts',
-        description: 'Type a shortcut such as <Super><Shift>n and press Enter. Leave it empty to turn it off.',
+        description: 'Type a shortcut such as &lt;Super&gt;&lt;Shift&gt;n and press Enter. Leave it empty to turn it off.',
     });
     shortcuts.add(shortcutRow(settings, 'toggle-notch', 'Open or close the notch'));
     shortcuts.add(shortcutRow(settings, 'show-music-peek', 'Show what is playing'));
@@ -182,6 +233,24 @@ function musicPage(settings) {
         'Seconds the music stays in the closed notch after pausing', [0, 10, 1]));
     page.add(closed);
 
+    const players = new Adw.PreferencesGroup({title: 'Players'});
+    players.add(switchRow(settings, 'player-selection', 'Preferred and ignored players',
+        'Follow the preferred player when it plays, and never show the ignored ones. Match part of a player\'s name, such as vlc, and separate several ignored names with commas.'));
+    const preferred = new Adw.EntryRow({title: 'Preferred player'});
+    settings.bind('preferred-player', preferred, 'text', Gio.SettingsBindFlags.DEFAULT);
+    const ignored = new Adw.EntryRow({title: 'Ignored players'});
+    settings.bind('ignored-players', ignored, 'text', Gio.SettingsBindFlags.DEFAULT);
+    for (const row of [preferred, ignored])
+        settings.bind('player-selection', row, 'sensitive', Gio.SettingsBindFlags.GET);
+    players.add(preferred);
+    players.add(ignored);
+    page.add(players);
+
+    const lyrics = new Adw.PreferencesGroup({title: 'Lyrics'});
+    lyrics.add(switchRow(settings, 'show-lyrics', 'Synced lyrics',
+        'Show the line being sung under the artist on the Home tab. Each track\'s title, artist, album and length are sent to lrclib.net (https://lrclib.net/api/get) to find its lyrics. Off by default.'));
+    page.add(lyrics);
+
     const player = new Adw.PreferencesGroup({title: 'Player buttons', description: 'From left to right'});
     const syncs = [];
     for (let slot = 0; slot < PLAYER_SLOTS; slot++) {
@@ -206,6 +275,36 @@ function musicPage(settings) {
     return page;
 }
 
+function shelfPage(settings) {
+    const page = new Adw.PreferencesPage({title: 'Shelf', icon_name: 'folder-symbolic'});
+
+    const shelf = new Adw.PreferencesGroup({
+        title: 'Shelf',
+        description: 'Files are kept as links to where they are, never copied. The list is saved in the cache folder.',
+    });
+    shelf.add(switchRow(settings, 'show-shelf', 'Shelf tab',
+        'Show the Shelf tab in the open notch'));
+    shelf.add(switchRow(settings, 'shelf-auto-add', 'Add downloads and screenshots',
+        'Add each finished download and each new screenshot to the shelf'));
+    shelf.add(switchRow(settings, 'shelf-drop', 'Drag files to the notch',
+        'Dragging files to the notch opens the Shelf, and dropping adds them. GNOME does not give the notch the files itself, so a small invisible window is started for each drag to take the drop.'));
+    page.add(shelf);
+
+    const share = new Adw.PreferencesGroup({
+        title: 'Share',
+        description: 'Share targets are found when you press Share: only the ones installed or running here are offered.',
+    });
+    share.add(switchRow(settings, 'shelf-share', 'Share button',
+        'Show Share on each file, with Phone (GSConnect), Bluetooth, LocalSend and Email when they are available'));
+    page.add(share);
+
+    const clipboard = new Adw.PreferencesGroup({title: 'Clipboard'});
+    clipboard.add(switchRow(settings, 'clipboard-history', 'Clipboard history',
+        'Reads the clipboard every time something is copied, and lists the recent text in the Shelf tab. It is kept in memory only, never written to disk. Text a password manager marks as secret is skipped when the manager sets the x-kde-passwordManagerHint type (KeePassXC does); other managers may not, and their secrets are kept.'));
+    page.add(clipboard);
+    return page;
+}
+
 function peeksPage(settings) {
     const page = new Adw.PreferencesPage({title: 'Peeks', icon_name: 'preferences-system-notifications-symbolic'});
 
@@ -215,6 +314,10 @@ function peeksPage(settings) {
     });
     group.add(switchRow(settings, 'notifications-in-notch', 'Notifications',
         'Show new notifications in the notch instead of as banners'));
+    const buttons = switchRow(settings, 'notification-buttons', 'Notification buttons',
+        'Show up to two of a notification\'s own buttons, such as Reply, on its peek');
+    settings.bind('notifications-in-notch', buttons, 'sensitive', Gio.SettingsBindFlags.GET);
+    group.add(buttons);
     group.add(switchRow(settings, 'replace-osd', 'Volume and brightness',
         'Show changes in the notch instead of the GNOME popup'));
     const open = switchRow(settings, 'hud-in-open-notch', 'Volume and brightness while open',
@@ -260,6 +363,58 @@ function peeksPage(settings) {
     return page;
 }
 
+function informationPage(settings) {
+    const page = new Adw.PreferencesPage({title: 'Information', icon_name: 'dialog-information-symbolic'});
+
+    const battery = new Adw.PreferencesGroup({title: 'Battery'});
+    battery.add(switchRow(settings, 'battery-details', 'Battery details',
+        'Click the battery in the header of the open notch to see its charge, time left, health and power saver state'));
+    battery.add(switchRow(settings, 'power-saver-peek', 'Power saver peek',
+        'Peek when the power profile changes to or from Power Saver'));
+    page.add(battery);
+
+    const calendar = new Adw.PreferencesGroup({title: 'Calendar'});
+    calendar.add(switchRow(settings, 'event-colors', 'Calendar colours',
+        'Show a bar in each calendar\'s colour beside its events in the Today tab'));
+    calendar.add(switchRow(settings, 'hide-all-day-events', 'Hide all-day events',
+        'Leave the all-day events out of the Today tab\'s list'));
+    calendar.add(switchRow(settings, 'up-next', 'Up next',
+        'Name the next event today, with its time, on the Home tab when nothing is playing'));
+    calendar.add(switchRow(settings, 'show-next-event', 'Countdown to the next event',
+        'Show "in 12 min" in the closed notch before an event starts. Clicking it opens the Today tab.'));
+    const lead = spinRow(settings, 'meeting-lead-minutes', 'Countdown starts',
+        'Minutes before the event that the countdown begins', [1, 60, 1]);
+    settings.bind('show-next-event', lead, 'sensitive', Gio.SettingsBindFlags.GET);
+    calendar.add(lead);
+    page.add(calendar);
+
+    const activities = new Adw.PreferencesGroup({title: 'Live activities'});
+    activities.add(switchRow(settings, 'allow-external-activities', 'Other programs',
+        'Let scripts and apps show live activities and peeks through the D-Bus name org.gnome.Shell.Extensions.BoringNotch'));
+    activities.add(switchRow(settings, 'show-app-progress', 'App progress',
+        'Show progress that apps report to GNOME, such as browser downloads and file copies'));
+    page.add(activities);
+
+    const weather = new Adw.PreferencesGroup({title: 'Weather'});
+    weather.add(switchRow(settings, 'show-weather', 'Weather on the Today tab',
+        'Shows the temperature and today\'s high and low, from Open-Meteo, when the Today tab opens. The coordinates are sent to open-meteo.com. Off by default.'));
+    const latitude = coordinateRow(settings, 'weather-latitude', 'Latitude (-90 to 90)', 90);
+    const longitude = coordinateRow(settings, 'weather-longitude', 'Longitude (-180 to 180)', 180);
+    const place = new Adw.EntryRow({title: 'Place name (optional)'});
+    settings.bind('weather-place', place, 'text', Gio.SettingsBindFlags.DEFAULT);
+    for (const row of [latitude, longitude, place]) {
+        settings.bind('show-weather', row, 'sensitive', Gio.SettingsBindFlags.GET);
+        weather.add(row);
+    }
+    page.add(weather);
+
+    const system = new Adw.PreferencesGroup({title: 'System'});
+    system.add(switchRow(settings, 'show-system-tab', 'System tab',
+        'Show processor, memory, network and temperature in a System tab of the open notch. The readings come from /proc and /sys once a second, and only while that tab is on screen.'));
+    page.add(system);
+    return page;
+}
+
 function aboutPage(metadata) {
     const page = new Adw.PreferencesPage({title: 'About', icon_name: 'help-about-symbolic'});
     const group = new Adw.PreferencesGroup({
@@ -280,7 +435,9 @@ export default class BoringNotchPreferences extends ExtensionPreferences {
         window._settings = settings;
         window.add(generalPage(settings));
         window.add(musicPage(settings));
+        window.add(shelfPage(settings));
         window.add(peeksPage(settings));
+        window.add(informationPage(settings));
         window.add(aboutPage(this.metadata));
     }
 }

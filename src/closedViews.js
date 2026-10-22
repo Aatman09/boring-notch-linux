@@ -58,6 +58,27 @@ class ClosedView extends St.BoxLayout {
     get showsClock() {
         return true;
     }
+
+    // Whether a press belongs to a control inside the view (a bar, a
+    // button), so the island leaves it to that control instead of acting
+    // on the whole peek.
+    takesPress(_event) {
+        return false;
+    }
+
+    // Turns the left and right halves into one group in the middle: the
+    // base layout puts its halves at the notch's edges, which leaves a gap
+    // between things that belong together. Both halves then name the
+    // group, so subclasses can add to either. Returns the group.
+    _centre() {
+        const [left, gap, right] = this.get_children();
+        this.remove_child(gap);
+        this.remove_child(right);
+        this.right = left;
+        left.x_expand = true;
+        left.x_align = Clutter.ActorAlign.CENTER;
+        return left;
+    }
 });
 
 /** MusicLiveActivity: album art on the left, visualizer on the right. */
@@ -185,9 +206,9 @@ class HudView extends ClosedView {
         this._value.text = `${Math.round(level * 100)}`;
     }
 
-    // Whether a press is on the bar, so the island leaves it to the slider.
-    isBar(actor) {
-        return actor === this._bar;
+    // A press on the bar is the slider's.
+    takesPress(event) {
+        return event.get_source() === this._bar;
     }
 
     // A bar the pointer is on or dragging must not vanish under the hand.
@@ -262,16 +283,19 @@ class BatterySneakView extends ClosedView {
         return false;
     }
 
+    // levelMark is 'full', 'critical', 'low' or 'saver' for the power
+    // profile peek; without one the text says what the battery is doing.
     update(battery, levelMark = null) {
-        if (levelMark === 'full')
+        if (levelMark === 'saver')
+            this._status.text = battery.powerSaver ? 'Power saver on' : 'Power saver off';
+        else if (levelMark === 'full')
             this._status.text = 'Fully charged';
         else if (levelMark === 'critical')
             this._status.text = 'Critical battery';
         else if (levelMark)
             this._status.text = 'Low battery';
         else
-            this._status.text = battery.charging ? 'Charging'
-                : battery.pluggedIn ? 'Plugged in' : 'On battery';
+            this._status.text = battery.statusText;
         this._percent.text = `${battery.percentage}%`;
         this._icon.icon_name = battery.iconName;
         this._status.remove_style_class_name('bn-charging');
@@ -279,9 +303,9 @@ class BatterySneakView extends ClosedView {
         this._status.remove_style_class_name('bn-full');
         if (levelMark === 'full')
             this._status.add_style_class_name('bn-full');
-        else if (levelMark)
+        else if (levelMark && levelMark !== 'saver')
             this._status.add_style_class_name('bn-low');
-        else if (battery.pluggedIn)
+        else if (!levelMark && battery.pluggedIn)
             this._status.add_style_class_name('bn-charging');
     }
 });
@@ -291,9 +315,7 @@ export const ScreenshotPeekView = GObject.registerClass(
 class ScreenshotPeekView extends ClosedView {
     _init() {
         super._init('bn-screenshot-peek');
-        // One group, thumbnail then caption, centred in the notch: the base
-        // layout instead lands its children at the notch's edges, which
-        // leaves the caption far from the picture. GNOME hands the
+        // The thumbnail and its caption, centred together. GNOME hands the
         // screenshot over as an St.ImageContent, which always shows whole,
         // whatever its size.
         this._thumbnail = new St.Widget({
@@ -305,13 +327,9 @@ class ScreenshotPeekView extends ClosedView {
             text: 'Screenshot',
             y_align: Clutter.ActorAlign.CENTER,
         });
-        const [left, gap, right] = this.get_children();
-        this.remove_child(gap);
-        this.remove_child(right);
-        left.x_expand = true;
-        left.x_align = Clutter.ActorAlign.CENTER;
-        left.add_child(this._thumbnail);
-        left.add_child(this._caption);
+        const group = this._centre();
+        group.add_child(this._thumbnail);
+        group.add_child(this._caption);
     }
 
     sideWidth() {
@@ -343,14 +361,17 @@ class ScreenshotPeekView extends ClosedView {
 /**
  * An icon and some text. Live activities (timer, downloads) put the text on
  * the right, around the clock. Peeks (notifications, finished downloads) are
- * one left-aligned row with no clock.
+ * one left-aligned row with no clock, or with `centred` one row in the
+ * middle.
  */
 export const IconTextView = GObject.registerClass(
 class IconTextView extends ClosedView {
-    _init(styleClass, sideWidth, {peek = false} = {}) {
+    _init(styleClass, sideWidth, {peek = false, centred = false} = {}) {
         super._init(`bn-icon-text ${styleClass}`);
         this._side = sideWidth;
         this._peek = peek;
+        if (centred)
+            this._centre();
         this._icon = new St.Icon({style_class: 'bn-icon-text-icon', y_align: Clutter.ActorAlign.CENTER});
         this.left.add_child(this._icon);
         this._title = new St.Label({style_class: 'bn-icon-text-title', y_align: Clutter.ActorAlign.CENTER});
@@ -379,6 +400,39 @@ class IconTextView extends ClosedView {
         this._title.visible = title !== '';
         this._body.text = body;
         this._body.visible = body !== '';
+    }
+});
+
+/** A notification peek: the text on the left, and up to two of the
+ *  notification's own buttons on the right. The buttons go once the peek
+ *  has faded out, so a button cannot act for a notification that is gone. */
+export const NotificationPeekView = GObject.registerClass(
+class NotificationPeekView extends IconTextView {
+    _init() {
+        super._init('bn-message-sneak', 150, {peek: true});
+        this._buttons = new St.BoxLayout({style_class: 'bn-notification-buttons', y_align: Clutter.ActorAlign.CENTER});
+        this.right.add_child(this._buttons);
+    }
+
+    // `actions` holds {label, activate} for each button, at most two.
+    update({actions = [], ...text}) {
+        super.update(text);
+        this._buttons.destroy_all_children();
+        for (const {label, activate} of actions) {
+            const button = new St.Button({style_class: 'bn-chip', label, can_focus: true});
+            button.connect('clicked', activate);
+            this._buttons.add_child(button);
+        }
+    }
+
+    // A press on a button is the button's. The press's own source can be
+    // missing, so the buttons' hover is asked instead.
+    takesPress(_event) {
+        return this._buttons.get_children().some(button => button.hover);
+    }
+
+    onHidden() {
+        this._buttons.destroy_all_children();
     }
 });
 
