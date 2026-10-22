@@ -508,7 +508,7 @@
 }
 
 .bn-events-scroll {
-  min-height: 30px;
+  min-height: 40px;
 }
 
 /* Opaque, because GNOME stacks the cards of a collapsed group. */
@@ -635,7 +635,7 @@
 }
 
 .bn-sysmon-spark {
-  min-height: 30px;
+  min-height: 40px;
   margin-top: 2px;
 }
 
