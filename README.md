@@ -24,6 +24,61 @@ The songs, people and events in the clips are made up. They are recorded
 with `tools/demo/demo.sh`, which drives a headless GNOME Shell and records it
 with GNOME's own screencast.
 
+## Install
+
+You need GNOME Shell 50 on Wayland (Ubuntu 26.04, Fedora 44, Debian testing).
+Check with `gnome-shell --version`; see [Requirements](#requirements) for other
+versions.
+
+### From a release (easiest)
+
+1. Download `boring-notch-linux@aatman09.github.io.shell-extension.zip` from the
+   [latest release](https://github.com/Aatman09/boring-notch-linux/releases/latest).
+2. Install it:
+
+   ```sh
+   gnome-extensions install --force boring-notch-linux@aatman09.github.io.shell-extension.zip
+   ```
+
+3. Log out and back in (GNOME on Wayland only loads new extensions at login).
+4. Enable it:
+
+   ```sh
+   gnome-extensions enable boring-notch-linux@aatman09.github.io
+   ```
+
+### From source
+
+```sh
+git clone https://github.com/Aatman09/boring-notch-linux.git
+cd boring-notch-linux
+make install
+```
+
+Then log out and back in, and enable it as in step 4 above.
+
+### Optional packages
+
+For the music bars to follow the audio (they move on their own without them):
+
+```sh
+sudo apt install gstreamer1.0-tools gstreamer1.0-plugins-good   # Ubuntu, Debian
+sudo dnf install gstreamer1 gstreamer1-plugins-good                # Fedora
+```
+
+### Settings
+
+Right-click the notch and choose **Settings**, use the gear in the open notch,
+or run `gnome-extensions prefs boring-notch-linux@aatman09.github.io`. Weather,
+lyrics, clipboard history and the System tab are off until you switch them on
+there.
+
+### Update and remove
+
+- **Update:** install the new zip (or `git pull` and `make install`), then log
+  out and back in.
+- **Remove:** `gnome-extensions uninstall boring-notch-linux@aatman09.github.io`
+
 ## Features
 
 - **Clock and notifications:** the top bar clock moves into the notch, with a
@@ -198,21 +253,6 @@ Desktop and Soup 3 typelibs are its dependencies), apart from two optional parts
   `gstreamer1.0-tools`) and GStreamer's `spectrum` and `pulsesrc` elements (package
   `gstreamer1.0-plugins-good`). Without them the bars still move, just on their own.
 - **Clicking the privacy peek** opens `gnome-control-center`.
-
-## Install
-
-```sh
-make install
-```
-
-On Wayland, log out and back in, then:
-
-```sh
-gnome-extensions enable boring-notch-linux@aatman09.github.io
-```
-
-Settings: `gnome-extensions prefs boring-notch-linux@aatman09.github.io`, or
-use the gear icon in the open notch.
 
 ## How it maps to boring.notch
 
