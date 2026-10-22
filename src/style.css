@@ -585,6 +585,92 @@
   background-color: rgba(255, 255, 255, 0.12);
 }
 
+/* The notch is dark in both of GNOME's styles. The light style gives the
+   calendar and the notification cards dark text on light cards, some of it
+   with !important, so every colour they use is set here. */
+#boring-notch .calendar .calendar-day,
+#boring-notch .calendar .calendar-month-header .pager-button {
+  color: #ffffff;
+}
+
+#boring-notch .calendar .calendar-month-header .calendar-month-label {
+  color: #ffffff !important;
+}
+
+#boring-notch .calendar .calendar-day.calendar-weekend,
+#boring-notch .calendar .calendar-day-heading,
+#boring-notch .calendar .calendar-week-number {
+  color: #aeaeb2;
+}
+
+#boring-notch .calendar .calendar-day.calendar-other-month,
+#boring-notch .calendar .calendar-day.calendar-other-month.calendar-weekend {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+#boring-notch .calendar .calendar-day.calendar-today {
+  color: -st-accent-fg-color !important;
+}
+
+/* The light dot under days with events. */
+#boring-notch .calendar .calendar-day.calendar-day-with-events {
+  background-image: url("resource:///org/gnome/shell/theme/calendar-today.svg");
+}
+
+#boring-notch .message:second-in-stack,
+#boring-notch .message:lower-in-stack {
+  background-color: #1c1c1e;
+  border-color: #2c2c2e;
+}
+
+#boring-notch .message:active {
+  background-color: #2c2c2e;
+  color: #ffffff;
+}
+
+#boring-notch .message:focus {
+  background-color: #1c1c1e;
+  color: #ffffff;
+}
+
+/* A card that cannot be clicked, such as the media card of a player that
+   is going away. */
+#boring-notch .message:insensitive {
+  background-color: #1c1c1e;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+#boring-notch .message .message-header,
+#boring-notch .message .message-header .message-header-content .event-time {
+  color: #aeaeb2;
+}
+
+#boring-notch .message .message-header .message-expand-button,
+#boring-notch .message .message-header .message-close-button,
+#boring-notch .message-notification-group .message-collapse-button {
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+#boring-notch .message .message-header .message-expand-button:hover,
+#boring-notch .message .message-header .message-close-button:hover,
+#boring-notch .message-notification-group .message-collapse-button:hover {
+  background-color: rgba(255, 255, 255, 0.22);
+}
+
+#boring-notch .message .message-box .message-icon.message-themed-icon {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+#boring-notch .message-media-control {
+  color: #ffffff;
+  background-color: transparent;
+}
+
+#boring-notch .message-media-control:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
 .bn-weather {
   spacing: 6px;
   margin-top: 4px;
