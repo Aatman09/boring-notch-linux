@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.2 (2026-10-22)
+
+### Fixed
+- The music peek shows only when a different track starts. Pausing and
+  playing again, or seeking forward and back (which browsers report as a
+  short pause while they buffer), no longer make it pop up.
+
 ## 1.1.1 (2026-10-22)
 
 ### Fixed
