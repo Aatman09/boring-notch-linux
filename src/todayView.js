@@ -14,10 +14,11 @@ import {CalendarSources} from './calendarSources.js';
  */
 export const TodayView = GObject.registerClass(
 class TodayView extends St.BoxLayout {
-    _init(settings) {
+    _init(settings, weather) {
         super._init({style_class: 'bn-today', x_expand: true, y_expand: true});
         this.layout_manager.homogeneous = true;
         this._settings = settings;
+        this._weather = weather;
         this._sources = new CalendarSources();
 
         this._messages = new Calendar.CalendarMessageList();
@@ -53,6 +54,14 @@ class TodayView extends St.BoxLayout {
         });
         column.add_child(this._calendar);
 
+        // Today's weather under the calendar, hidden until there is an answer.
+        this._weatherRow = new St.BoxLayout({style_class: 'bn-weather', x_align: Clutter.ActorAlign.CENTER});
+        this._weatherIcon = new St.Icon({style_class: 'bn-weather-icon', y_align: Clutter.ActorAlign.CENTER});
+        this._weatherText = new St.Label({style_class: 'bn-weather-text', y_align: Clutter.ActorAlign.CENTER});
+        this._weatherRow.add_child(this._weatherIcon);
+        this._weatherRow.add_child(this._weatherText);
+        column.add_child(this._weatherRow);
+
         this._eventsTitle = new St.Label({style_class: 'bn-events-title'});
         this._events = new St.BoxLayout({
             orientation: Clutter.Orientation.VERTICAL,
@@ -81,8 +90,12 @@ class TodayView extends St.BoxLayout {
         settings.connectObject(
             'changed::hide-all-day-events', () => this._syncEvents(),
             'changed::event-colors', () => this._syncEvents(),
+            'changed::weather-place', () => this._syncWeather(),
             this);
+        weather.connectObject('changed', () => this._syncWeather(), this);
+        this._syncWeather();
         this.connect('destroy', () => {
+            weather.disconnectObject(this);
             this._eventSource.destroy();
             this._sources.destroy();
         });
@@ -107,6 +120,17 @@ class TodayView extends St.BoxLayout {
         this._date = new Date();
         this._calendar.setDate(this._date);
         this._syncEvents();
+    }
+
+    _syncWeather() {
+        const weather = this._weather.weather;
+        this._weatherRow.visible = weather !== null;
+        if (!weather)
+            return;
+        const place = this._settings.get_string('weather-place');
+        this._weatherIcon.icon_name = weather.icon;
+        this._weatherText.text = [place, `${weather.temperature}°`, `H ${weather.high}° · L ${weather.low}°`]
+            .filter(part => part !== '').join('  ');
     }
 
     _syncEvents() {

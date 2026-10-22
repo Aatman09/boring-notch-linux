@@ -5,6 +5,7 @@ import {Extension, InjectionManager} from 'resource:///org/gnome/shell/extension
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Urgency} from 'resource:///org/gnome/shell/ui/messageTray.js';
 
+import {ActivityApi} from './src/activityApi.js';
 import {ArtCache} from './src/art.js';
 import {ArtColorLoader} from './src/artColor.js';
 import {AudioLevels, IGNORED_RECORDING_APPS} from './src/audio.js';
@@ -14,11 +15,13 @@ import {BluetoothMonitor} from './src/bluetooth.js';
 import {DownloadWatcher} from './src/downloads.js';
 import {Island} from './src/island.js';
 import {KeyboardMonitor} from './src/keyboard.js';
+import {LauncherEntryWatcher} from './src/launcherEntry.js';
 import {MediaManager} from './src/media.js';
 import {PrivacyMonitor} from './src/privacy.js';
 import {RecordingMonitor} from './src/recording.js';
 import {ScaledStylesheet} from './src/style.js';
 import {exclusive, Pomodoro, Stopwatch, Timer} from './src/timer.js';
+import {WeatherSource} from './src/weather.js';
 import {Zoom} from './src/zoom.js';
 
 /**
@@ -102,6 +105,9 @@ export default class BoringNotchExtension extends Extension {
             keyboard: new KeyboardMonitor(),
             recording: new RecordingMonitor(),
             audioRoute: new AudioRouteMonitor(),
+            activities: new ActivityApi(this._settings),
+            launcher: new LauncherEntryWatcher(this._settings),
+            weather: new WeatherSource(this._settings),
         };
 
         this._island = new Island({

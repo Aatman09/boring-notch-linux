@@ -1,4 +1,7 @@
+import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
+
+import * as BarLevel from 'resource:///org/gnome/shell/ui/barLevel.js';
 
 import {IconTextView} from './closedViews.js';
 import {Priority} from './peekQueue.js';
@@ -12,11 +15,14 @@ const RECORD_SIDE = 52;
 const TIMER_SIDE = 52;
 const MEETING_SIDE = 84;
 const DOWNLOAD_SIDE = 52;
+// An app's or another program's activity: its icon, title and bar, then a
+// count of the others, or its detail.
+const ACTIVITY_SIDE = 150;
 
 /**
  * What keeps running in the closed notch instead of peeking for a moment:
- * the screen recording, a timer, the next meeting and downloads, in that
- * order of urgency. (Music is the island's own, below all of these.)
+ * the screen recording, a timer, the next meeting, the activities other
+ * programs report and downloads, in that order of urgency. (Music is the island's own, below all of these.)
  *
  * The island puts `views` into the closed notch, asks current() which one
  * to show, hands presses on it to press(), and says with setOpen() when the
@@ -32,6 +38,9 @@ export class LiveActivities {
         this._stopwatch = sources.stopwatch;
         this._pomodoro = sources.pomodoro;
         this._downloads = sources.downloads;
+        this._activities = sources.activities;
+        this._launcher = sources.launcher;
+        this._activity = null;
         this._recordTickId = 0;
         this._recordStartUs = 0;
 
@@ -39,7 +48,10 @@ export class LiveActivities {
         this._timerView = new IconTextView('bn-timer-live', TIMER_SIDE);
         this._meetingView = new IconTextView('bn-meeting-live', MEETING_SIDE);
         this._downloadView = new IconTextView('bn-download-live', DOWNLOAD_SIDE);
-        this.views = [this._recordView, this._timerView, this._meetingView, this._downloadView];
+        this._activityView = new IconTextView('bn-activity-live', ACTIVITY_SIDE);
+        this._activityBar = new BarLevel.BarLevel({style_class: 'bn-activity-bar', y_align: Clutter.ActorAlign.CENTER});
+        this._activityView.right.insert_child_at_index(this._activityBar, 1);
+        this.views = [this._recordView, this._timerView, this._meetingView, this._activityView, this._downloadView];
 
         this._upcoming = new UpcomingEvents(settings, eventSource);
         this._upcoming.connectObject('changed', () => this._syncMeeting(), this);
@@ -54,6 +66,8 @@ export class LiveActivities {
             'finished', (_p, phase) => this._onTimerFinished(phase === 'work' ? 'Break time' : 'Back to work'),
             this);
         this._downloads.connectObject('changed', () => this._syncDownloads(), this);
+        this._activities.connectObject('changed', () => this._syncActivities(), this);
+        this._launcher.connectObject('changed', () => this._syncActivities(), this);
         settings.connectObject(
             'changed::show-recording', () => this._syncRecording(),
             'changed::show-downloads', () => host.relayout(),
@@ -70,6 +84,7 @@ export class LiveActivities {
         this.syncTimer();
         this._syncMeeting();
         this._syncDownloads();
+        this._syncActivities();
     }
 
     // The activity to show, or null.
@@ -80,6 +95,10 @@ export class LiveActivities {
             return this._timerView;
         if (this._upcoming.event)
             return this._meetingView;
+        // A download that an app reports through LauncherEntry shows as that
+        // app's activity, with its progress, so the download count waits.
+        if (this._activity)
+            return this._activityView;
         if (this._downloads.count > 0 && this._settings.get_boolean('show-downloads'))
             return this._downloadView;
         return null;
@@ -208,11 +227,29 @@ export class LiveActivities {
         this._host.relayout();
     }
 
+    // The most recent activity from the D-Bus API or from LauncherEntry is
+    // shown, with a count of the others; its bar follows its progress.
+    _syncActivities() {
+        const [latest, ...others] = [...this._activities.list, ...this._launcher.list]
+            .sort((a, b) => b.updated - a.updated);
+        this._activity = latest ?? null;
+        if (latest) {
+            this._activityView.update({
+                icon: latest.icon,
+                title: latest.title,
+                body: others.length > 0 ? `+${others.length}` : latest.detail,
+            });
+            this._activityBar.visible = latest.progress >= 0;
+            this._activityBar.value = Math.max(latest.progress, 0);
+        }
+        this._host.relayout();
+    }
+
     destroy() {
         this._stopRecordTick();
         this._upcoming.destroy();
         for (const source of [this._recording, this._timer, this._stopwatch,
-            this._pomodoro, this._downloads, this._settings])
+            this._pomodoro, this._downloads, this._activities, this._launcher, this._settings])
             source.disconnectObject(this);
     }
 }

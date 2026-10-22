@@ -44,11 +44,24 @@ the pointer on it.
   and a Pomodoro (25 minutes of work, then 5 of break, both lengths set in
   Settings) sit beside it; the phases follow each other until it is reset,
   and whichever mode runs shows in the closed notch.
+- **Weather:** off by default. With **Weather on the Today tab** on and a
+  latitude and longitude set in Settings, the Today tab shows the temperature
+  and today's high and low, from Open-Meteo. It asks when the tab opens, at
+  most every 30 minutes, and hides the line when a request fails.
 - **Next event:** when the next timed event today starts within 15 minutes
   (a setting), the closed notch shows "in 12 min" until it starts. It counts
   down once a minute, and clicking it opens the Today tab.
 - **Downloads:** browser downloads show while they run, and a peek with the
   file name when they finish. Click it to open the Downloads folder.
+- **App progress:** apps that report progress to GNOME through the Unity
+  LauncherEntry API (browsers, file managers, torrent clients) show their
+  name, icon and a progress bar in the closed notch. It is on by default;
+  switch off **App progress** in Settings to stop it.
+- **Other programs:** scripts can show their own live activities and peeks
+  over the session bus, at `org.gnome.Shell.Extensions.BoringNotch` with
+  `Start`, `Update`, `End` and `Peek` (see `src/activityApi.js` for the
+  arguments and limits). Switch off **Other programs** in Settings to refuse
+  them.
 - **Volume and brightness:** changes appear inside the notch instead of the
   GNOME popup: as a bar beside the icon in the top row, or as a row grown
   under the clock, with the percentage beside the bar. Drag the bar to set
@@ -58,6 +71,8 @@ the pointer on it.
   charging. Click the battery in the open notch's header for its status, time
   to full or empty, health and energy rate, and whether Power Saver is on. A
   peek says when the power profile changes to or from Power Saver.
+- **Privacy:** the weather is off by default. When it is on, the coordinates
+  you set are sent to open-meteo.com.
 - **Privacy:** small dots beside the clock when the microphone, camera or
   screen sharing is in use, and a peek naming the app. It only reads which
   apps are using them; nothing is recorded.
