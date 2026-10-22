@@ -77,6 +77,8 @@ class ShelfView extends St.BoxLayout {
         this._mode = 'files';
         // The file whose share targets are open, if any.
         this._sharePath = null;
+        // Whether dragged files are over the shelf (see setDropHover).
+        this._dropHover = false;
         // Cancels the file queries of the rows of the last build.
         this._rowsCancellable = null;
         this._shareTargets = new ShareTargets();
@@ -126,6 +128,16 @@ class ShelfView extends St.BoxLayout {
         this._rebuild();
     }
 
+    // While dragged files are over the shelf, it says a drop adds them.
+    setDropHover(hover) {
+        if (hover)
+            this.add_style_class_name('bn-shelf-drop');
+        else
+            this.remove_style_class_name('bn-shelf-drop');
+        this._dropHover = hover;
+        this._rebuild();
+    }
+
     // Called when the tab opens: files moved or deleted since then leave,
     // and the share targets are looked for again.
     reset() {
@@ -164,7 +176,7 @@ class ShelfView extends St.BoxLayout {
             return;
         }
         const paths = this._shelf.paths;
-        this._count.text = paths.length > 0
+        this._count.text = this._dropHover ? 'Drop to add to the shelf' : paths.length > 0
             ? `${paths.length} on the shelf`
             : 'Copy files in the file manager, then press Paste';
         // Share buttons show only when there is something to share to.

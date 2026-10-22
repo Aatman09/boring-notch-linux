@@ -286,6 +286,8 @@ function shelfPage(settings) {
         'Show the Shelf tab in the open notch'));
     shelf.add(switchRow(settings, 'shelf-auto-add', 'Add downloads and screenshots',
         'Add each finished download and each new screenshot to the shelf'));
+    shelf.add(switchRow(settings, 'shelf-drop', 'Drag files to the notch',
+        'Dragging files to the notch opens the Shelf, and dropping adds them. GNOME does not give the notch the files itself, so a small invisible window is started for each drag to take the drop.'));
     page.add(shelf);
 
     const share = new Adw.PreferencesGroup({

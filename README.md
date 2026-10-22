@@ -80,6 +80,12 @@ the pointer on it.
   file manager, or removes it. The shelf keeps links to the files, never
   copies, in the cache folder; a file that has been moved or deleted leaves
   the list when the tab opens.
+- **Drag and drop (shelf):** drag files from Files or the desktop to the
+  notch: it opens on the Shelf and the dropped files are added. GNOME Shell
+  is never handed dragged files on Wayland, so for each drag a small
+  invisible helper window (`helper/dropTarget.js`, GTK 4) is placed under the
+  open notch to take the drop. Switch it off with **Drag files to the
+  notch**.
 - **Quick Share:** a Share button on each shelf file lists the ways this
   computer can send it: a phone through GSConnect, Bluetooth, LocalSend and
   email. Only the ones installed or running are listed, and the button is

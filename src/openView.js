@@ -80,6 +80,10 @@ export const OpenView = GObject.registerClass({
         this._syncSystem();
     }
 
+    setShelfDropHover(hover) {
+        this._pages.shelf.setDropHover(hover);
+    }
+
     setUnread(unread) {
         this._header.setUnread(unread);
     }

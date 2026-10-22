@@ -22,6 +22,7 @@ import {MediaManager} from './src/media.js';
 import {PrivacyMonitor} from './src/privacy.js';
 import {RecordingMonitor} from './src/recording.js';
 import {Shelf} from './src/shelf.js';
+import {ShelfDrop} from './src/shelfDrop.js';
 import {ScaledStylesheet} from './src/style.js';
 import {SystemMonitor} from './src/sysmon.js';
 import {exclusive, Pomodoro, Stopwatch, Timer} from './src/timer.js';
@@ -126,6 +127,12 @@ export default class BoringNotchExtension extends Extension {
             openPreferences: () => this.openPreferences(),
         });
         Main.layoutManager.addTopChrome(this._island, {trackFullscreen: true});
+        this._shelfDrop = new ShelfDrop({
+            settings: this._settings,
+            shelf: this._sources.shelf,
+            island: this._island,
+            helperPath: this.dir.get_child('helper').get_child('dropTarget.js').get_path(),
+        });
 
         this._clockMover = new ClockMover(this._settings);
         this._injectIntoShell();
@@ -214,6 +221,8 @@ export default class BoringNotchExtension extends Extension {
         this._clockMover.destroy();
         this._clockMover = null;
 
+        this._shelfDrop.destroy();
+        this._shelfDrop = null;
         Main.layoutManager.removeChrome(this._island);
         this._island.destroy();
         this._island = null;

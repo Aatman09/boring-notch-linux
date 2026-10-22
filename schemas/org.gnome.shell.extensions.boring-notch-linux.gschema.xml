@@ -262,6 +262,10 @@
       <default>false</default>
       <summary>Read the clipboard whenever something is copied and keep the recent text, in memory only, for the Clipboard list of the Shelf tab</summary>
     </key>
+    <key name="shelf-drop" type="b">
+      <default>true</default>
+      <summary>Open the Shelf when files are dragged to the notch, and add the files dropped on it; a small invisible helper window takes the drop</summary>
+    </key>
     <key name="shelf-share" type="b">
       <default>true</default>
       <summary>Show a Share button on shelf files, for the sharing targets found on this computer: GSConnect, Bluetooth, LocalSend and email</summary>

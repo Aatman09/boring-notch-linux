@@ -4,6 +4,7 @@ import GLib from 'gi://GLib';
 import GnomeDesktop from 'gi://GnomeDesktop';
 import GObject from 'gi://GObject';
 import Pango from 'gi://Pango';
+import Shell from 'gi://Shell';
 import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -103,6 +104,8 @@ class Island extends St.Widget {
         // True while hover must wait for the pointer to leave after a press
         // on a control inside a peek.
         this._hoverHeld = false;
+        // True while files are dragged onto the open notch.
+        this._dragging = false;
         this._gesture = {dx: 0, dy: 0, time: 0, done: false};
         this._soundSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.sound'});
         this._touchpadSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.peripherals.touchpad'});
@@ -287,6 +290,38 @@ class Island extends St.Widget {
 
     get isOpen() {
         return this._state === State.OPEN;
+    }
+
+    // Where the notch is now (tab null), or where it would be open on
+    // `tab`, in stage pixels.
+    rectFor(tab) {
+        const monitor = Main.layoutManager.monitors[this.monitorIndex];
+        const width = tab ? OPEN_SIZES[tab].width * this._zoom * this._scale : this.width;
+        const height = tab ? OPEN_SIZES[tab].height * this._zoom * this._scale : this.height;
+        return {
+            x: Math.round(monitor.x + monitor.width / 2 - width / 2),
+            y: monitor.y,
+            width: Math.round(width),
+            height: Math.round(height),
+        };
+    }
+
+    // While files are dragged onto the notch, it stays open whatever the
+    // hover says, and lets the pointer through to the drop target under it
+    // (see shelfDrop.js).
+    setDragging(dragging) {
+        this._dragging = dragging;
+        // The notch and everything in it is left out of picking: its buttons
+        // and lists would otherwise keep the pointer from the window under it.
+        Shell.util_set_hidden_from_pick(this, dragging);
+        if (!dragging)
+            this._onHoverChanged();
+    }
+
+    // Whether a drag is over the shelf's drop target, for the Shelf tab to
+    // say what a drop will do.
+    setShelfDropHover(hover) {
+        this._openView.setShelfDropHover(hover);
     }
 
     // Queues a peek; see PeekQueue.
@@ -629,8 +664,9 @@ class Island extends St.Widget {
                 this._setTimeout('hover', this._settings.get_int('hover-delay'), () => this.open());
         } else if (!this.hover && this._state === State.OPEN) {
             this._setTimeout('hover', CLOSE_DELAY_MS, () => {
-                // Keep the notch open while the seek bar is being dragged.
-                if (!this.hover && !this._openView.busy)
+                // Keep the notch open while the seek bar or files are being
+                // dragged.
+                if (!this.hover && !this._openView.busy && !this._dragging)
                     this.close();
             });
         }

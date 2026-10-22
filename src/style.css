@@ -660,6 +660,11 @@
   color: rgba(235, 235, 240, 0.6);
 }
 
+.bn-shelf-drop {
+  border: 2px dashed rgba(255, 255, 255, 0.35);
+  border-radius: 12px;
+}
+
 .bn-system-rates {
   spacing: 12px;
 }
