@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.1 (2026-10-22)
+
+### Fixed
+- The calendar and notification cards stay readable with Blur my Shell
+  enabled in the light style. Blur my Shell restyles GNOME's calendar and
+  message list everywhere, the notch included, with `!important` colours;
+  the notch now keeps its own.
+
 ## 1.1 (2026-10-22)
 
 ### New
