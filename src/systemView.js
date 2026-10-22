@@ -81,24 +81,29 @@ export const SystemView = GObject.registerClass(
 class SystemView extends St.BoxLayout {
     _init({system}) {
         super._init({style_class: 'bn-system', x_expand: true, y_expand: true});
-        this._history = {cpu: [], memory: [], down: [], up: []};
+        this._history = {cpu: [], memory: [], network: [], temperature: []};
 
         this._cpuLabel = valueLabel();
         this._cpuSpark = new Sparkline();
         this._memoryLabel = valueLabel();
         this._memorySpark = new Sparkline();
+        // Down and up share one line, and one graph of the two together,
+        // so every column has the same shape: title, value, graph.
         this._downLabel = valueLabel();
-        this._downSpark = new Sparkline();
         this._upLabel = valueLabel();
-        this._upSpark = new Sparkline();
+        const rates = new St.BoxLayout({style_class: 'bn-system-rates'});
+        rates.add_child(this._downLabel);
+        rates.add_child(this._upLabel);
+        this._networkSpark = new Sparkline();
         this._temperatureLabel = valueLabel();
+        this._temperatureSpark = new Sparkline();
         // Only shown when a processor temperature sensor exists.
-        this._temperatureBox = column('Temperature', this._temperatureLabel);
+        this._temperatureBox = column('Temperature', this._temperatureLabel, this._temperatureSpark);
         this._temperatureBox.visible = false;
 
         this.add_child(column('Processor', this._cpuLabel, this._cpuSpark));
         this.add_child(column('Memory', this._memoryLabel, this._memorySpark));
-        this.add_child(column('Network', this._downLabel, this._downSpark, this._upLabel, this._upSpark));
+        this.add_child(column('Network', rates, this._networkSpark));
         this.add_child(this._temperatureBox);
 
         system.connectObject('sample', (_system, sample) => this._show(sample), this);
@@ -117,8 +122,9 @@ class SystemView extends St.BoxLayout {
     _show({cpu, memUsed, memTotal, down, up, temperature}) {
         this._push('cpu', cpu);
         this._push('memory', 100 * memUsed / memTotal);
-        this._push('down', down);
-        this._push('up', up);
+        this._push('network', down + up);
+        if (temperature !== null)
+            this._push('temperature', temperature);
         this._cpuLabel.text = `${Math.round(cpu)}%`;
         this._memoryLabel.text = `${(memUsed / GIB).toFixed(1)} of ${(memTotal / GIB).toFixed(1)} GB`;
         this._downLabel.text = `↓ ${formatRate(down)}`;
@@ -137,11 +143,10 @@ class SystemView extends St.BoxLayout {
     }
 
     _sync() {
-        const {cpu, memory, down, up} = this._history;
-        const rateMax = Math.max(MIN_RATE_SCALE, ...down, ...up);
+        const {cpu, memory, network, temperature} = this._history;
         this._cpuSpark.setValues(cpu, 100);
         this._memorySpark.setValues(memory, 100);
-        this._downSpark.setValues(down, rateMax);
-        this._upSpark.setValues(up, rateMax);
+        this._networkSpark.setValues(network, Math.max(MIN_RATE_SCALE, ...network));
+        this._temperatureSpark.setValues(temperature, 100);
     }
 });
