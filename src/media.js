@@ -285,7 +285,7 @@ function matchesAny(player, fragments) {
  * should show: the preferred player when it plays, else the player that is
  * playing, else the one that played last. Ignored players are never picked.
  * Emits 'changed' whenever that player or its state changes, and
- * 'track-changed' when a new track starts playing or playback resumes.
+ * 'track-changed' when a different track starts playing.
  */
 export class MediaManager extends EventEmitter {
     constructor(settings) {
@@ -358,16 +358,20 @@ export class MediaManager extends EventEmitter {
         this.emit('changed');
     }
 
-    // What identifies the track the active player is playing, or null.
+    // What identifies the track the active player is playing, or null when
+    // nothing with a title plays.
     _trackKey() {
         const player = this.activePlayer;
-        return player?.playing ? `${player.busName}\n${player.title}\n${player.artists}` : null;
+        return player?.playing && player.title ? `${player.busName}\n${player.title}\n${player.artists}` : null;
     }
 
+    // Only a different track is news. The last track that played is kept
+    // through a pause, so playing it again does not count, and neither does
+    // a seek, which browsers report as a short pause while they buffer.
     _checkTrack() {
         const player = this.activePlayer;
         const key = this._trackKey();
-        if (key === this._playingKey)
+        if (key === null || key === this._playingKey)
             return;
         this._playingKey = key;
         const settled = GLib.get_monotonic_time() - this._startTime > SETTLE_MS * 1000;
@@ -398,7 +402,7 @@ export class MediaManager extends EventEmitter {
         // A selection change is not a track change: what the player the
         // selection points at is already playing must not surface as a
         // fresh track.
-        this._playingKey = this._trackKey();
+        this._playingKey = this._trackKey() ?? this._playingKey;
     }
 
     get activePlayer() {
